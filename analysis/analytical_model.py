@@ -165,91 +165,92 @@ class Analyzer_Conv:
     # DRAM - Global buffer data movement
     @property
     def ifmap_dram_glb_rounds_per_layer(self):
-        c = (self.convparam.C - 1) // self.ifmap_channel_per_pass + 1
-        h = (self.convparam.E - 1) // self.mapping.e + 1
-        return c * h
+        n = self.convparam.N / self.mapping.n
+        c = self.convparam.C / self.ifmap_channel_per_pass
+        e = self.convparam.E / self.mapping.e
+        return n * c * e
 
     @property
     def filter_dram_glb_rounds_per_layer(self):
-        c = (self.convparam.C - 1) // self.filter_channel_per_pass + 1
-        n = (self.convparam.M - 1) // (self.mapping.p * self.mapping.t) + 1
-        return c * n
+        n = self.convparam.N / self.mapping.n
+        c = self.convparam.C / self.filter_channel_per_pass
+        m = self.convparam.M / (self.mapping.p * self.mapping.t)
+        e = self.convparam.E / self.mapping.e
+        return n * c * m * e
 
     @property
     def ofmap_dram_glb_rounds_per_layer(self):
-        c = (self.convparam.M - 1) // self.mapping.m + 1
-        h = (self.convparam.E - 1) // self.mapping.e + 1
-        return c * h
+        n = self.convparam.N / self.mapping.n
+        m = self.convparam.M / self.mapping.m
+        e = self.convparam.E / self.mapping.e
+        return n * m * e
 
     # Global buffer - Spad data movement
     @property
-    def ifmap_passes_per_glb(self):
-        return 1
+    def ifmap_glb_access_per_layer(self):
+        n = self.convparam.N / self.mapping.n
+        c = self.convparam.C / self.ifmap_channel_per_pass
+        e = self.convparam.E / self.mapping.e
+        m = self.convparam.M / self.mapping.t # filter
+        return n * c * m * e
+    @property
+    def filter_glb_access_per_layer(self):
+        n = self.convparam.N / self.mapping.n
+        c = self.convparam.C / self.filter_channel_per_pass
+        m = self.convparam.M / (self.mapping.p * self.mapping.t)
+        e = self.convparam.E / self.mapping.e
+        return n * c * m * e 
 
     @property
-    def filter_passes_per_glb(self):
-        return 1
-
-    @property
-    def ofmap_passes_per_glb(self):
-        return 1
+    def ofmap_glb_access_per_layer(self):
+        n = self.convparam.N / self.mapping.n
+        m = self.convparam.M / self.mapping.m
+        e = self.convparam.E / self.mapping.e
+        c = self.convparam.C / self.filter_channel_per_pass - 1
+        return n * c * m * e
 
     # Time property
     @property
     def dram_access_count_per_layer(self):
-        t = self.ifmap_dram_glb_rounds_per_layer * self.glb_ifmap_size_per_pass
-        t += self.filter_dram_glb_rounds_per_layer * self.glb_filter_size_per_pass
-        t += self.ofmap_dram_glb_rounds_per_layer * self.glb_ofmap_size_per_pass
-        return t * DATA_SIZE
+        a = self.ifmap_dram_glb_rounds_per_layer * self.glb_ifmap_size_per_pass
+        b = self.filter_dram_glb_rounds_per_layer * self.glb_filter_size_per_pass
+        c = self.ofmap_dram_glb_rounds_per_layer * self.glb_ofmap_size_per_pass
+        return a + b + c
 
     @property
     def glb_access_count_per_layer(self):
-        t = (
-            self.ifmap_dram_glb_rounds_per_layer * self.glb_ifmap_size_per_pass
-        )  # move multi-channel in once
-        t += self.filter_dram_glb_rounds_per_layer * self.glb_filter_size_per_pass
-        t += self.ofmap_dram_glb_rounds_per_layer * self.glb_ofmap_size_per_pass
-        return t * DATA_SIZE
+        a = self.ifmap_glb_access_per_layer * self.glb_ifmap_size_per_pass
+        b = self.filter_glb_access_per_layer * self.glb_filter_size_per_pass
+        c = self.ofmap_glb_access_per_layer * self.glb_ofmap_size_per_pass
+        return a + b + c
 
-    # Summary - time
+    # Summary - num of MACs
     @property
-    def memory_access_time(self):
-        # origin
-        t0 = (
-            self.convparam.N
-            * (self.convparam.R * self.convparam.S * self.convparam.C)
-            * self.convparam.E
-            * self.convparam.F
-            * self.convparam.M
-            * 2
-        )  # read filter & ifmap
-        t0 += (
-            self.convparam.N * self.convparam.E * self.convparam.F * self.convparam.M
-        )  # write ofmap
-        t0 = t0 * DATA_SIZE / BUS_BANDWIDTH * DRAM_ACCESS_TIME
-        # this architecture
-        t1 = self.dram_access_count_per_layer + self.glb_access_count_per_layer
-        return (t0, t1, t1 / t0)  # ratio
+    def MACs_per_layer(self):
+        pe = self.ifmap_used * self.convparam.F + 1
+        pe_set = self.convparam.R * self.convparam.E
+        c = self.convparam.C / self.ifmap_channel_per_pass
+        return pe * pe_set * c * self.convparam.N * self.convparam.M * self.mapping.r
 
     # represent
     def __repr__(self) -> str:
-        s = "[Memory Requirement]\n"
-        s += f"[Name]\t{self.name}\n"
-        s += "===============================\n"
-        s += f"[glb_ifmap]\t {self.glb_ifmap_size_per_pass/1024:10.1f} KiB\n"
-        s += f"[glb_filter]\t {self.glb_filter_size_per_pass/1024:10.1f} KiB\n"
-        s += f"[glb_ofmap]\t {self.glb_ofmap_size_per_pass/1024:10.1f} KiB\n"
-        s += f"[glb_total]\t {self.glb_total_size/1024:10.1f} KiB\n"
+        s = f"[Name] {self.name} "
+        s += f"[glb_ifmap] {self.glb_ifmap_size_per_pass/1024:5.1f} KiB "
+        s += f"[glb_filter] {self.glb_filter_size_per_pass/1024:5.1f} KiB "
+        s += f"[glb_ofmap] {self.glb_ofmap_size_per_pass/1024:5.1f} KiB "
+        s += f"[glb_total] {self.glb_total_size/1024:5.1f} KiB "
+        s += f"[MACs] {self.MACs_per_layer/(10**9):3.2f} G "
         return s
 
     def test_info(self) -> str:
-        s = f"[Name]\t{self.name}\t"
-        s += f"[glb_ifmap]\t {self.glb_ifmap_size_per_pass/1024:10.1f} KiB "
-        s += f"[glb_filter]\t {self.glb_filter_size_per_pass/1024:10.1f} KiB "
-        s += f"[glb_ofmap]\t {self.glb_ofmap_size_per_pass/1024:10.1f} KiB "
-        s += f"[glb_total]\t {self.glb_total_size/1024:10.1f} KiB "
-        s += f"[glb_access]\t {self.glb_access_count_per_layer/(2**20):5.1f} MB "
-        s += f"[dram_access]\t {self.dram_access_count_per_layer/(2**20):5.1f} MB "
+        s = f"[Name] {self.name} "
+        s += f"[glb_ifmap] {self.glb_ifmap_size_per_pass/1024:5.1f} KiB "
+        s += f"[glb_filter] {self.glb_filter_size_per_pass/1024:5.1f} KiB "
+        s += f"[glb_ofmap] {self.glb_ofmap_size_per_pass/1024:5.1f} KiB "
+        s += f"[glb_total] {self.glb_total_size/1024:5.1f} KiB "
+        s += f"[MACs] {self.MACs_per_layer/(10**9):3.2f} G "
+        s += f"[glb_access] {self.glb_access_count_per_layer/(2**20):5.1f} MB "
+        s += f"[dram_access] {self.dram_access_count_per_layer/(2**20):5.1f} MB "
         return s
 
 
@@ -314,38 +315,40 @@ class Mapper_Conv:
 
 
 def test():
-   
+
+    batch_size = 4
+
     conv1 = Analyzer_Conv(
         name="Alexnet.conv1",
-        convparam=ConvParam(1, 227, 227, 11, 11, 55, 55, 3, 96, 4),
+        convparam=ConvParam(batch_size, 227, 227, 11, 11, 55, 55, 3, 96, 4),
         hardwareparam=HardwareParam(),
         mapping=MappingParam(1, 7, 1, 1, 16, 2, 96, 0),
     )
 
     conv2 = Analyzer_Conv(
         name="Alexnet.conv2",
-        convparam=ConvParam(1, 31, 31, 5, 5, 27, 27, 48, 256, 1),
+        convparam=ConvParam(batch_size, 31, 31, 5, 5, 27, 27, 48, 256, 1),
         hardwareparam=HardwareParam(),
         mapping=MappingParam(1, 27, 1, 2, 16, 1, 64, 0),
     )
 
     conv3 = Analyzer_Conv(
         name="Alexnet.conv3",
-        convparam=ConvParam(1, 15, 15, 3, 3, 13, 13, 256, 384, 1),
+        convparam=ConvParam(batch_size, 15, 15, 3, 3, 13, 13, 256, 384, 1),
         hardwareparam=HardwareParam(),
         mapping=MappingParam(4, 13, 1, 4, 16, 4, 64, 0),
     )
 
     conv4 = Analyzer_Conv(
         name="Alexnet.conv4",
-        convparam=ConvParam(1, 15, 15, 3, 3, 13, 13, 192, 384, 1),
+        convparam=ConvParam(batch_size, 15, 15, 3, 3, 13, 13, 192, 384, 1),
         hardwareparam=HardwareParam(),
         mapping=MappingParam(4, 13, 2, 3, 16, 2, 64, 0),
     )
 
     conv5 = Analyzer_Conv(
         name="Alexnet.conv5",
-        convparam=ConvParam(1, 15, 15, 3, 3, 13, 13, 192, 256),
+        convparam=ConvParam(batch_size, 15, 15, 3, 3, 13, 13, 192, 256),
         hardwareparam=HardwareParam(),
         mapping=MappingParam(4, 13, 2, 3, 16, 2, 64, 0),
     )
@@ -354,11 +357,11 @@ def test():
     # print(conv2)
     # print(conv3)
 
-    print(conv1.test_info())
-    print(conv2.test_info())
-    print(conv3.test_info())
-    print(conv4.test_info())
-    print(conv5.test_info())
+    print(conv1)
+    print(conv2)
+    print(conv3)
+    print(conv4)
+    print(conv5)
 
 
 if __name__ == "__main__":
