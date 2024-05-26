@@ -1,4 +1,4 @@
-module  MulitcastController
+module  MulticastController
 #(
     parameter ID_LEN = 4,
     parameter VALUE_LEN = 32,
@@ -32,19 +32,12 @@ module  MulitcastController
     end
 
     // ready 
-    assign ready_out = (tag == id)? ready_in: 1'b0;
+    assign ready_out = ready_in;
 
     // enable
     assign enable_out = (ready_in & (tag == id) & enable_in)? 1'b1:1'b0;
 
     // value
     assign value_out = (enable_out)? value_in : 'd0;
-
-    /********************* DEBUG BLOCK begin *********************/
-    /*always@(id) begin // id_set done
-        $write("PE(%2d, %2d) [ID] %2d \n",MA_X,MA_Y,id);
-    end*/
-
-    /********************* DEBUG BLOCK end *********************/
     
 endmodule

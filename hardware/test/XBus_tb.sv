@@ -1,5 +1,5 @@
 `timescale 1ns/10ps
-`include "./pe_array/XBus.v"
+`include "./pe_array/Bus.v"
 `include "./pe_array/PEWrapper.v"
 `include "./pe_array/MappingConfig.v"
 
@@ -31,32 +31,30 @@ wire pe_ready [PE_NUMS-1:0];
 wire [VALUE_LEN:0] pe_data [PE_NUMS-1:0];
 
 // X Bus - 1
-XBus #(
-    .PE_NUMS(PE_NUMS),
+Bus #(
+    .MASTER_NUMS(PE_NUMS),
     .ID_LEN(ID_LEN),
-    .VALUE_LEN(VALUE_LEN),
-    .PSUM_WIDTH(PSUM_WIDTH)
+    .VALUE_LEN(VALUE_LEN)
 )XBus_0(
     .clk(clk),
     .rst(rst),
     
-    .enable(enable),
     .ready(ready),
-    .tag_value(tag_value),
+    .enable_tag_value({enable,tag_value}),
+
+    /* PE IO */
+    .master_ready(pe_ready),
+    .master_enable_data(pe_data),
 
     .set_id(set_id),
     .id_scan_in(id_scan_in),
-    .id_scan_out(id_scan_out),
-
-    /* PE IO */
-    .pe_ready(pe_ready),
-    .pe_data(pe_data)
+    .id_scan_out(id_scan_out)
 );
 // PE - 14
 genvar i;
 for (i = 0;i < PE_NUMS; i = i + 1) begin
     PEWrapper #(
-        .MA_Y(i)
+        .MA_X(i)
     )PEWrapper_0(
         .clk(clk),
         .rst(rst),
@@ -105,20 +103,20 @@ initial begin
     $display("[xbus] set ID done.");
     #(`CYCLE * 3) $display("[xbus] test ifmap multicast.");
     #`CYCLE enable = 1;
-    #`CYCLE tag_value = {ID_LEN'('d0), VALUE_LEN'('h00)};
-    #`CYCLE tag_value = {ID_LEN'('d1), VALUE_LEN'('h01)};
-    #`CYCLE tag_value = {ID_LEN'('d2), VALUE_LEN'('h02)};
-    #`CYCLE tag_value = {ID_LEN'('d3), VALUE_LEN'('h03)};
-    #`CYCLE tag_value = {ID_LEN'('d4), VALUE_LEN'('h04)};
-    #`CYCLE tag_value = {ID_LEN'('d5), VALUE_LEN'('h05)};
-    #`CYCLE tag_value = {ID_LEN'('d6), VALUE_LEN'('h06)};
-    #`CYCLE tag_value = {ID_LEN'('d0), VALUE_LEN'('hff)};
-    #`CYCLE tag_value = {ID_LEN'('d1), VALUE_LEN'('hfe)};
-    #`CYCLE tag_value = {ID_LEN'('d2), VALUE_LEN'('hfd)};
-    #`CYCLE tag_value = {ID_LEN'('d3), VALUE_LEN'('hfc)};
-    #`CYCLE tag_value = {ID_LEN'('d4), VALUE_LEN'('hfb)};
-    #`CYCLE tag_value = {ID_LEN'('d5), VALUE_LEN'('hfa)};
-    #`CYCLE tag_value = {ID_LEN'('d6), VALUE_LEN'('hf9)};
+    #`CYCLE tag_value = {ID_LEN'('d0), VALUE_LEN'('h00)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d1), VALUE_LEN'('h01)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d2), VALUE_LEN'('h02)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d3), VALUE_LEN'('h03)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d4), VALUE_LEN'('h04)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d5), VALUE_LEN'('h05)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d6), VALUE_LEN'('h06)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d0), VALUE_LEN'('hff)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d1), VALUE_LEN'('hfe)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d2), VALUE_LEN'('hfd)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d3), VALUE_LEN'('hfc)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d4), VALUE_LEN'('hfb)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d5), VALUE_LEN'('hfa)}; wait(ready); $display("[Ready] time = %d", $time);
+    #`CYCLE tag_value = {ID_LEN'('d6), VALUE_LEN'('hf9)}; wait(ready); $display("[Ready] time = %d", $time);
     #`CYCLE enable = 0;
     $display("[xbus] test ifmap multicast done.");
     $finish;

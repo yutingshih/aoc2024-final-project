@@ -59,8 +59,8 @@ wire ifmap_get = (ifmap_enable & ifmap_ready);
 string fname;
 integer fd;
 initial begin
-    $sformat(fname,"%s/PE_STUB_X%02d_Y%02d.log",`OUTPUT_PATH,MA_X,MA_Y);
-    fd = $fopen(fname,"a");
+    $sformat(fname,"%s/PE_STUB_Y%02d_X%02d.log",`OUTPUT_PATH,MA_Y,MA_X);
+    fd = $fopen(fname,"w");
     $fdisplay(fd, "======= PE STUB =======");
     $fdisplay(fd, " X = %2d", MA_X);
     $fdisplay(fd, " Y = %2d", MA_Y);
@@ -75,6 +75,5 @@ always @(posedge clk or posedge rst) begin
         $fclose(fd);
     end
 end
-
 
 endmodule

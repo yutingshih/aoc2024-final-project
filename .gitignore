@@ -1,3 +1,5 @@
 tmp*
 projects/
-
+*.log
+*.fsdb
+simv*
