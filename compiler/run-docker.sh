@@ -1,4 +1,4 @@
-topdir=$(pwd)/projects
+topdir=$(dirname $(realpath $0))/projects
 mkdir -p $topdir
 
 try-pull() {
@@ -32,19 +32,21 @@ run-onnc () {
     try-pull onnc/onnc-community
     try-clone https://github.com/ONNC/onnc.git $topdir/onnc
     try-clone https://github.com/ONNC/onnc-tutorial.git $topdir/onnc-tutorial
-    docker run -ti --rm --cap-add=SYS_PTRACE \
+    docker run -ti --rm --cap-add=SYS_PTRACE --hostname=aoc2024 \
         -v $topdir/onnc:/onnc/onnc \
         -v $topdir/onnc-tutorial:/tutorial \
         -v $(pwd)/scripts:/scripts \
+        -v $topdir/workspace:/workspace \
         onnc/onnc-community
 }
 
 run-nvvp() {
     try-pull onnc/vp
     try-clone https://github.com/ONNC/onnc-tutorial.git $topdir/onnc-tutorial
-    docker run -ti --rm \
+    docker run -ti --rm --hostname=aoc2024 \
         -v $topdir/onnc-tutorial:/tutorial \
         -v $(pwd)/scripts:/scripts \
+        -v $topdir/workspace:/workspace \
         onnc/vp
 }
 
