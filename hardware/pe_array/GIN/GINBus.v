@@ -1,6 +1,6 @@
-`include "./pe_array/MulticastController.v"
+`include "./pe_array/GIN/GINMulticastController.v"
 
-module Bus #(
+module GINBus #(
     parameter MASTER_NUMS = 14,
     parameter ID_LEN = 5,
     parameter VALUE_LEN = 32,
@@ -40,7 +40,7 @@ module Bus #(
     /* multicast with PE */
     genvar i;
     for (i = 0;i < MASTER_NUMS; i = i + 1) begin
-        MulticastController #(
+        GINMulticastController #(
             .ID_LEN(ID_LEN), 
             .VALUE_LEN(VALUE_LEN),
             .MA_X(i),

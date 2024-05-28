@@ -1,4 +1,4 @@
-module  MulticastController
+module  GINMulticastController
 #(
     parameter ID_LEN = 4,
     parameter VALUE_LEN = 32,

@@ -1,5 +1,5 @@
 `timescale 1ns/10ps
-`include "./pe_array/Bus.v"
+`include "./pe_array/GIN/GINBus.v"
 `include "./pe_array/PEWrapper.v"
 `include "./pe_array/MappingConfig.v"
 
@@ -30,8 +30,8 @@ logic opsum_ready [PE_NUMS-1:0];
 wire pe_ready [PE_NUMS-1:0];
 wire [VALUE_LEN:0] pe_data [PE_NUMS-1:0];
 
-// X Bus - 1
-Bus #(
+// X GINBus - 1
+GINBus #(
     .MASTER_NUMS(PE_NUMS),
     .ID_LEN(ID_LEN),
     .VALUE_LEN(VALUE_LEN)

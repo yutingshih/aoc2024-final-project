@@ -55,6 +55,10 @@ module PEStub #(
 assign ifmap_ready = 1'b1;
 wire ifmap_get = (ifmap_enable & ifmap_ready);
 
+assign opsum_enable = 1'b1;
+wire [7:0] d = MA_X+MA_Y+3;
+assign opsum = {d,d,d,d};
+
 /* stub for debug */
 string fname;
 integer fd;
