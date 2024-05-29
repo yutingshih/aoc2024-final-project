@@ -6,7 +6,8 @@ download_model() {
 }
 
 __download_default() {
-    download_model https://github.com/ONNC/onnc-tutorial/raw/master/models/lenet/lenet.onnx $parent/lenet5-fp32
+    # download_model https://github.com/ONNC/onnc-tutorial/raw/master/models/lenet/lenet.onnx $parent/lenet5-fp32
+    # download_model $onnx_model_zoo/vision/classification/alexnet/model/bvlcalexnet-9.onnx $parent/alexnet-fp32
     download_model $onnx_model_zoo/vision/classification/inception_and_googlenet/googlenet/model/googlenet-9.onnx $parent/googlenet-fp32
     download_model $onnx_model_zoo/vision/classification/squeezenet/model/squeezenet1.0-9.onnx $parent/squeezenet-fp32
 }

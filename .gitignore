@@ -1,5 +1,7 @@
 tmp*
 projects/
+workspace/
 *.onnx
 *.pt
 *.pth
+.vscode/
