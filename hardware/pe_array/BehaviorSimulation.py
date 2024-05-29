@@ -81,49 +81,75 @@ import torch
 torch.manual_seed(123)
 
 def tiling_list(N, n):
-    return [n,]*(N//n) + [N%n, ] if N%n != 0 else [n,]*(N//n)
+    t = [n,]*(N//n) + [N%n, ] if N%n != 0 else [n,]*(N//n)
+    return len(t), t
 
-def tiling_conv2d(ifmap, filter, simulate_output):    
+def hardware_conv2d(ifmap, filter,pading_H1,pading_H2):
+    s = list(ifmap.shape)
+    #print("[hardware_conv2d] ifmap.shape = ",s)
+    s[2] = pading_H1 # hight
+    padding_zero = torch.zeros(s, dtype=torch.int16) 
+    ifmap = torch.cat((padding_zero,ifmap) , dim = 2)
+    s[2] = pading_H2 # hight
+    padding_zero = torch.zeros(s, dtype=torch.int16) 
+    ifmap = torch.cat((ifmap,padding_zero) , dim = 2)
+    #print("[hardware_conv2d] ifmap.shape = ",ifmap.shape)
+    #print("[hardware_conv2d] filter.shape = ",filter.shape)
+        
+    return torch.nn.functional.conv2d(ifmap, filter, stride=(1, 1), padding=(0, 1)) 
+
+def tiling_conv2d(ifmap, filter, simulate_output, stride=(1, 1), padding=(1, 1)):    
     (N,C,H,W)= ifmap.shape
     (M,_,R,S)= filter.shape
     (_,_,E,F)= simulate_output.shape
+    P = padding[0]
+    U = stride[0]
     
-    n_tile = tiling_list(N,4)
-    n_tile = tiling_list(N,4)
-    n_tile = tiling_list(N,4)
+    map_n = 1
+    map_q = 3
+    map_e = 14
+    map_m = 4
     
+    n_group, n_tile = tiling_list(N,map_n)
+    q_group, q_tile = tiling_list(C,map_q)
+    e_group, e_tile = tiling_list(E,map_e)
+    m_group, m_tile = tiling_list(M,map_m)
     
-    for n in range(N):
-        for m in range(M):
-            for e in range(E):
-                for r in range(R):
-                    for c in range(c_tile):
-                        # --------------------------
-                        for q in range(q_tile[c]):
-                            for f in range(F):
-                                h = e+r-(R//2)
-                                if h < 0 or h >= H:
-                                    continue
-                                w1 = f-(S//2)
-                                w2 = w1 + 3
-                                s1 = 0
-                                s2 = 3
-                                if w1 < 0:
-                                    w1 = 0
-                                    s1 = w1 - (f-(S//2))
-                                if w2 >= W:
-                                    w2 = W
-                                    s2 = w2 - (f-(S//2))
-                                #for s in range(S):    
-                                simulate_output[n][m][e][f] += torch.dot(ifmap[n][c*4 + q][h][w1:w2] , filter[m][c*4+q][r][s1:s2])
-                print("[simulate_output] [{:3d}][{:3d}][{:3d}][{:3d}]".format(n,m,e,f),end= "\r", flush=True)
+    print(n_group, q_tile)
+    print(q_group, n_tile)
+    print(e_group, e_tile)
+    print(m_group, m_tile)
+    
+    for n in range(n_group):
+        for e in range(e_group):
+            for c in range(q_group):
+                for m in range(m_group):
+                # --------------------------
+                    n1 = n*map_n
+                    n2 = n1 + n_tile[n]
+                    e1 = e*map_e
+                    e2 = e1 + e_tile[e]
+                    q1 = c*map_q
+                    q2 = q1 + q_tile[c]
+                    m1 = m*map_m
+                    m2 = m1 + m_tile[m]
+                    h1 = (e1 * U) - U
+                    h2 = (e2 * U) + U
+                    #print((n1,n2),(e1,e2),(q1,q2),(m1,m2),(h1,h2))
+                    pading_H1 = 0 if h1 >= 0 else P
+                    h1 = h1 if h1 >= 0 else 0
+                    pading_H2 = 0  if h2 <= H else P
+                    h2 = h2 if h2 <= H else H
+                    #print((n1,n2),(e1,e2),(q1,q2),(m1,m2),(h1,h2))
+                    simulate_output[n1:n2,m1:m2,e1:e2,:] += hardware_conv2d(ifmap[n1:n2,q1:q2,h1:h2,:] , filter[m1:m2,q1:q2,:,:], pading_H1, pading_H2)
+                    print("[simulate_output] [{:3d}][{:3d}][{:3d}][:]".format(n1,m1,e1),end= "\r", flush=True)
     
     print()
     return simulate_output
 
 def main():
-    ifmap = torch.randint(low=-128, high=128, size=(1, 3, 28, 28), dtype=torch.int16)
-    filter = torch.randint(low=-128, high=128, size=(3, 3, 3, 3), dtype=torch.int16)
+    ifmap = torch.randint(low=-128, high=128, size=(1, 256, 56, 56), dtype=torch.int16)
+    filter = torch.randint(low=-128, high=128, size=(384, 256, 3, 3), dtype=torch.int16)
     golden = torch.nn.functional.conv2d(ifmap, filter, stride=(1, 1), padding=(1, 1))
     simulate_output = torch.zeros_like(golden)
     
@@ -132,7 +158,7 @@ def main():
     print(golden.shape)
     print(simulate_output.shape)
     
-    simulate_output = tiling_conv2d( ifmap, filter, simulate_output)
+    simulate_output = tiling_conv2d( ifmap, filter, simulate_output, stride=(1, 1), padding=(1, 1))
     print("[Result Check] ", torch.equal(golden,simulate_output))
     
 if __name__ == "__main__":
