@@ -1,9 +1,0 @@
-{"vcs1":{"timestamp_begin":1716801899.099487060, "rt":0.75, "ut":0.25, "st":0.06}}
-{"vcselab":{"timestamp_begin":1716801899.907010722, "rt":0.68, "ut":0.22, "st":0.04}}
-{"link":{"timestamp_begin":1716801900.631247853, "rt":0.14, "ut":0.09, "st":0.05}}
-{"SNPS_VCS_INTERNAL_ROOT_START_TIME": 1716801898.846729439}
-{"VCS_COMP_START_TIME": 1716801898.846729439}
-{"VCS_COMP_END_TIME": 1716801902.022143498}
-{"VCS_USER_OPTIONS": "-R -sverilog ./test/GON_tb.sv -debug_access+all -full64 +define+USE_STUB"}
-{"vcs1": {"peak_mem": 401692}}
-{"vcselab": {"peak_mem": 273152}}

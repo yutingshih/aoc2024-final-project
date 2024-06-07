@@ -1,7 +1,7 @@
 `timescale 1ns/10ps
-`include "./pe_array/GIN/GINBus.v"
-`include "./pe_array/PEWrapper.v"
-`include "./pe_array/MappingConfig.v"
+`include "./src/pe_array/GIN/GINBus.v"
+`include "./src/pe_array/PEWrapper.v"
+`include "./src/pe_array/MappingConfig.v"
 
 `define CYCLE 2
 

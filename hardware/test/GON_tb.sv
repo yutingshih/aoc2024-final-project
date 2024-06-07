@@ -1,7 +1,7 @@
 `timescale 1ns/10ps
-`include "./pe_array/GON/GON.v"
-`include "./pe_array/PEWrapper.v"
-`include "./pe_array/MappingConfig.v"
+`include "./src/pe_array/GON/GON.v"
+`include "./src/pe_array/PEWrapper.v"
+`include "./src/pe_array/MappingConfig.v"
 
 `define CYCLE 2
 
@@ -109,15 +109,15 @@ reg [VALUE_LEN-1:0] ifmap_mem [224*60-1:0];
 /* rst  and set_id*/
 initial begin 
     clk = 0;
-    rst = 0;
+    rst = 1;
     set_id = 0;
     set_row = 0;
     ready = 0;
     row_scan_in = 0;
     id_scan_in = 0;
     $display("[GON] reset.");
-    #`CYCLE rst = 1;
-    #(`CYCLE * 3) rst = 0;
+    #`CYCLE rst = 0;
+    #(`CYCLE * 3) rst = 1;
 
     $display("[GON] set ROW.");
     for(a = XBUS_NUMS-1;a>=0;a=a-1) begin

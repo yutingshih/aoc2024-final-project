@@ -3,3 +3,11 @@ projects/
 *.log
 *.fsdb
 simv*
+ucli.key
+novas.*
+novas_dump.*
+BSSLib.lib++
+csrc
+nWaveLog
+simv.daidir
+output

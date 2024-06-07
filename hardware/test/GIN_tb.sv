@@ -1,7 +1,7 @@
 `timescale 1ns/10ps
-`include "./pe_array/GIN/GIN.v"
-`include "./pe_array/PEWrapper.v"
-`include "./pe_array/MappingConfig.v"
+`include "./src/pe_array/GIN/GIN.v"
+`include "./src/pe_array/PEWrapper.v"
+`include "./src/pe_array/MappingConfig.v"
 
 `define CYCLE 2
 
@@ -28,8 +28,8 @@ logic [ID_LEN-1:0] id_scan_in;
 logic [ID_LEN-1:0] id_scan_out;
 
 logic set_row;
-logic [ID_LEN-1:0] row_scan_in;
-logic [ID_LEN-1:0] row_scan_out;
+logic [ROW_LEN-1:0] row_scan_in;
+logic [ROW_LEN-1:0] row_scan_out;
 
 wire pe_ready [PE_NUMS*XBUS_NUMS-1:0];
 wire [VALUE_LEN:0] pe_enable_data [PE_NUMS*XBUS_NUMS-1:0];
@@ -109,15 +109,15 @@ reg [VALUE_LEN-1:0] ifmap_mem [224*60-1:0];
 /* rst  and set_id*/
 initial begin 
     clk = 0;
-    rst = 0;
+    rst = 1;
     set_id = 0;
     set_row = 0;
     enable = 0;
     row_scan_in = 0;
     id_scan_in = 0;
     $display("[GIN] reset.");
-    #`CYCLE rst = 1;
-    #(`CYCLE * 3) rst = 0;
+    #`CYCLE rst = 0;
+    #(`CYCLE * 3) rst = 1;
 
     $display("[GIN] set ROW.");
     data_file = $fopen("./output/GIN_Test_ROW.txt", "r");
@@ -145,7 +145,7 @@ initial begin
     $readmemh("./output/GIN_Test_IFMAP.txt", ifmap_mem); // load test data
     for(c = 0; c < 224; c = c + 1) begin
         for(r = 0; r < 60; r = r + 1) begin
-            //$write("[GIN] r = %3d, c = %3d, row_tag = %2d, col_tag = %2d",r,c,r/14,r%14);
+            //$write("[GIN] r = %3d, c = %3d, row_tag = %2d, col_tag = %2d [value] %d",r,c,r/14,r%14,ifmap_mem[r*224 + c]);
             #`CYCLE enable = 1; row_tag = r/30; col_tag = r%30; value = ifmap_mem[r*224 + c];
             wait(ready); //$write(" [ready] ready time = %d\n", $time);
         end
