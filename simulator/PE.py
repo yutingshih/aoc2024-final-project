@@ -100,6 +100,7 @@ class PE(object):
     def put_ipsum(self,ipsum): # IPSUM_NUM data/transfer
         assert (self.state==IPSUM), "state should be IPSUM "
         assert(self.ipsum == None), "ipsum is not ready"
+        #print("[put_ipsum]",ipsum)
         self.ipsum = ipsum
         self.state=OPSUM
     
@@ -107,7 +108,8 @@ class PE(object):
         assert (self.state==OPSUM), "state should be OPSUM "
         p1 = self.psum_cnt*self.OPSUM_NUM
         p2 = (self.psum_cnt+1)*self.OPSUM_NUM
-        self.psum_spad[p1:p2] += self.ipsum
+        #print("[get_opsum]",self.psum_spad[p1:p2],self.ipsum)
+        self.psum_spad[p1:p2] = [ o+i for o,i in zip(self.psum_spad[p1:p2] , self.ipsum)]
         self.psum_cnt += self.OPSUM_NUM
         self.ipsum = None
         r = self.psum_spad[p1:p2]
@@ -147,10 +149,80 @@ class PE(object):
 
 import torch
 torch.manual_seed(123)
-def unitest():
+def unittest():
     print("[ Using Pytorch backend to Verify ]")
     ### Prepare data
-    (n,q,H,W) = (1,4,3,12)
+    (n,q,H,W) = (1,4,1,224)
+    (p,q,R,S) = (4,4,1,3)
+    U = 1
+    F = (W-S+U)/U
+    ifmap = torch.randint(low=-128, high=128, size=(n,q,H,W), dtype=torch.int16)
+    filter = torch.randint(low=-128, high=128, size=(p,q,R,S), dtype=torch.int16)
+    golden = torch.nn.functional.conv2d(ifmap, filter, stride=(U, U), padding=(0, 0))
+    #print("[ ifmap ]",ifmap)
+    #print("[ filter ]",filter)
+    #print("[ Golden ]",golden)
+    simulate_output = torch.zeros_like(golden)
+    print(simulate_output.shape)
+    
+    ### Generate PE 
+    #pe_set = [PE(MA_X = i) for i in range(R)] # default hardware configuration
+    #for pe in pe_set:
+    #    pe.set_info(q = q,p = p,U = U,S = S,F = F,W = W) # PE software config
+
+    pe = PE()
+    pe.set_info(q = q,p = p,U = U,S = S,F = F,W = W)
+    
+    ### Testing
+    # Filter 
+    for p_ in range(p):
+        for S_ in range(S):
+            # each PE 
+            #for R_ in range(R):
+            #    if pe_set[R_].filter_ready:
+            #        filter_data = filter[p_,:,R_,S_]#.tolist()
+            #        pe_set[R_].put_filter(filter_data)
+            if pe.filter_ready:
+                filter_data = filter[p_,:,0,S_]#.tolist()
+                pe.put_filter(filter_data)
+    
+    # ifmap / psum
+    W_ = 0
+    F_ = 0
+    psum = None
+    while F_ < F:
+        #print("[W_ / W] = {:d} / {:d}".format(W_,W))
+        # put ifmap    
+        if pe.ifmap_ready:
+            for q_ in range(q):
+                ifmap_data = [ifmap[0,q_,0,W_].tolist(),]
+                pe.put_ifmap(ifmap_data)
+            W_ += 1
+         
+
+        # MACs
+        pe.run()
+        
+        # try get output / put ipsum
+        if pe.ipsum_ready:
+            pe.put_ipsum([0,]*q)
+        if pe.opsum_enable:
+            psum = pe.get_opsum()
+                #print("[GET PSUM]",i,psum[i+1])
+
+        if psum != None:
+            for i,_psum in enumerate(psum):
+                simulate_output[0,i,0,F_] = _psum
+                psum = None
+            F_ += 1 
+
+    #print("[ simulate_output ]",simulate_output)
+    print("[Result Check] ", torch.equal(golden,simulate_output))
+
+def peset_test():
+    print("[ Using Pytorch backend to Verify ]")
+    ### Prepare data
+    (n,q,H,W) = (1,4,3,224)
     (p,q,R,S) = (4,4,3,3)
     U = 1
     F = (W-S+U)/U
@@ -181,17 +253,14 @@ def unitest():
     # ifmap / psum
     W_ = 0
     F_ = 0
-    psum = [[0,]*p, ] + [None, ] * R
+    psum =  [[0,]*q ] + [None,] * R
     while F_ < F:
         #print("[W_ / W] = {:d} / {:d}".format(W_,W))
-        # put ifmap
-        all_ready = True
-        for R_ in range(R):
-            all_ready = all_ready and pe_set[R_].ifmap_ready
-        
-        if all_ready:
-            for R_ in range(R):
-                for q_ in range(q):
+        # put ifmap    
+        if pe.ifmap_ready:
+            for q_ in range(q):
+                # each PE 
+                for R_ in range(R):
                     ifmap_data = [ifmap[0,q_,R_,W_].tolist(),]
                     pe_set[R_].put_ifmap(ifmap_data)
             W_ += 1
@@ -202,29 +271,27 @@ def unitest():
             pe.run()
         
         # try get output / put ipsum
-        for i in range(R):
-            if pe_set[i].ipsum_ready and psum[i] != None:
-                #print("[PUT PSUM]",i,psum[i])
-                pe_set[i].put_ipsum(psum[i])
-            if pe_set[i].opsum_enable:
-                psum[i+1] = pe_set[i].get_opsum()
-                #print("[GET PSUM]",i,psum[i+1])
+        for R_ in range(R):
+            if pe_set[R_].ipsum_ready and psum[R_] != None:
+                pe_set[R_].put_ipsum(psum[R_])
+            if pe_set[R_].opsum_enable:
+                psum[R_ + 1] = pe_set[R_].get_opsum()
         
-        next_w = True
-        for p_ in psum:
-            if p_ == None:
-                next_w = False
+        psum_ckeck = True
+        for  psum_ in psum:
+            if psum_ == None:
+                psum_ckeck = False
                 break
-
-        if next_w:
-            for i,r in enumerate(psum[R]):
-                #print(i, r)
-                simulate_output[0,i,0,F_] = r
-            #print(psum[R])
-            psum = [[0,]*p, ] + [None, ] * R
+        
+        if psum_ckeck:
+            for i,_psum in enumerate(psum[R][:p]):
+                simulate_output[0,i,0,F_] = _psum
+                psum =  [[0,]*q ] + [None,] * R
             F_ += 1 
 
     print("[ simulate_output ]",simulate_output)
-    
+    print("[Result Check] ", torch.equal(golden,simulate_output))
+
 if __name__ == "__main__":
-    unitest()
+    unittest()
+    peset_test()
