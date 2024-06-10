@@ -123,7 +123,7 @@ class Analyzer_Conv:
     @property
     def glb_ifmap_size_per_pass(self):
         return (
-            DATA_SIZE
+            IFMAP_DATA_SIZE
             * self.mapping.n
             * self.ifmap_channel_per_pass
             * ((self.mapping.e - 1) * self.convparam.U + self.convparam.R)
@@ -133,7 +133,7 @@ class Analyzer_Conv:
     @property
     def glb_filter_size_per_pass(self):
         return (
-            DATA_SIZE
+            FILTER_DATA_SIZE
             * (self.mapping.p * self.mapping.t)
             * self.filter_channel_per_pass
             * self.convparam.R
@@ -143,7 +143,7 @@ class Analyzer_Conv:
     @property
     def glb_ofmap_size_per_pass(self):
         return (
-            DATA_SIZE
+            PSUM_DATA_SIZE
             * self.mapping.n
             * self.mapping.m
             * self.mapping.e
@@ -489,4 +489,4 @@ def test_analyzer():
 
 if __name__ == "__main__":
     test_analyzer()
-    test_mapper()
+    #test_mapper()

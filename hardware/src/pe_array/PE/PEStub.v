@@ -4,7 +4,9 @@ module PEStub #(
     parameter IFMAP_SPAD_SIZE = 12,
               FILTER_SPAD_SIZE = 224,
               PSUM_SPAD_SIZE = 24,
-              DATA_SIZE = 8,
+              IFMAP_DATA_SIZE = 8,
+              FILTER_DATA_SIZE = 8,
+              PSUM_DATA_SIZE = 8,
               IFMAP_NUM = 1,
               FILTER_NUM = 4,
               IPSUM_NUM = 1,
@@ -13,8 +15,8 @@ module PEStub #(
               CONFIG_P_BIT = 5, // kernel count config
               CONFIG_U_BIT = 4, // stride config
               CONFIG_S_BIT = 4, // filter width config
-              CONFIG_F_BIT = 12, // ifmap width config
-              CONFIG_W_BIT = 12, // ofmap width config
+              CONFIG_F_BIT = 8, // ifmap width config
+              CONFIG_W_BIT = 8, // ofmap width config
               MA_X = 0,
               MA_Y = 0
 ) (
@@ -48,16 +50,18 @@ module PEStub #(
         p(kernel, 5b),
         U(stride, 4b), 
         S(filter width, 4b),
-        F(ofmap width, 12b),
-        W(ifmap width, 12b),
+        F(ofmap width, 8b),
+        W(ifmap width, 8b),
     */
 );
 assign ifmap_ready = 1'b1;
 wire ifmap_get = (ifmap_enable & ifmap_ready);
 
+reg ipsum_reg
+
 assign opsum_enable = 1'b1;
 wire [7:0] d = MA_X+MA_Y+3;
-assign opsum = {d,d,d,d};
+assign opsum = {d,d,d,d} + ipsum_reg;
 
 /* stub for debug */
 string fname;
@@ -76,6 +80,11 @@ always @(posedge clk or posedge rst) begin
     if(ifmap_get) begin
         fd = $fopen(fname,"a");
         $fdisplay(fd, "[ifmap_get] data = %5d", ifmap);
+        $fclose(fd);  
+    end
+    if(ifmap_get) begin
+        fd = $fopen(fname,"a");
+        $fdisplay(fd, "[ipsum_get] data = %5d", ifmap);
         $fclose(fd);
     end
 end

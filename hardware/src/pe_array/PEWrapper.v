@@ -5,7 +5,9 @@ module PEWrapper #(
     parameter IFMAP_SPAD_SIZE = 12,
               FILTER_SPAD_SIZE = 224,
               PSUM_SPAD_SIZE = 24,
-              DATA_SIZE = 8,
+              IFMAP_DATA_SIZE = 8,
+              FILTER_DATA_SIZE = 8,
+              PSUM_DATA_SIZE = 8,
               IFMAP_NUM = 1,
               FILTER_NUM = 4,
               IPSUM_NUM = 1,
@@ -23,32 +25,32 @@ module PEWrapper #(
     input rst,
     input enable,
     /* Wrapper */
-    input [IFMAP_NUM*DATA_SIZE:0] ifmap_in, // data + enable
+    input [IFMAP_NUM*IFMAP_DATA_SIZE:0] ifmap_in, // data + enable
     output ifmap_ready,
 
-    input [FILTER_NUM*DATA_SIZE:0] filter_in, // data + enable
+    input [FILTER_NUM*FILTER_DATA_SIZE:0] filter_in, // data + enable
     output filter_ready,
 
-    input [IPSUM_NUM*DATA_SIZE:0] ipsum_in, // data + enable
+    input [IPSUM_NUM*PSUM_DATA_SIZE:0] ipsum_in, // data + enable
     output ipsum_ready,
 
     input opsum_ready,
-    output wire [OPSUM_NUM*DATA_SIZE:0] opsum_out, // data + enable
+    output wire [OPSUM_NUM*PSUM_DATA_SIZE:0] opsum_out, // data + enable
 
     input [`CONFIG_BIT:0] config_in
 );
 
 /* Control Signal */
-wire ifmap_enable = ifmap_in[IFMAP_NUM*DATA_SIZE];
-wire filter_enable = filter_in[IFMAP_NUM*DATA_SIZE];
-wire ipsum_enable = ipsum_in[IFMAP_NUM*DATA_SIZE];
+wire ifmap_enable = ifmap_in[IFMAP_NUM*IFMAP_DATA_SIZE];
+wire filter_enable = filter_in[FILTER_NUM*FILTER_DATA_SIZE];
+wire ipsum_enable = ipsum_in[IPSUM_NUM*PSUM_DATA_SIZE];
 wire opsum_enable;
 
 /* Data Flow */
-wire   [(IFMAP_NUM*DATA_SIZE)-1:0]     ifmap = ifmap_in[(IFMAP_NUM*DATA_SIZE)-1:0];
-wire   [(FILTER_NUM*DATA_SIZE)-1:0]    filter = filter_in[(FILTER_NUM*DATA_SIZE)-1:0];
-wire   [(IPSUM_NUM*DATA_SIZE)-1:0]     ipsum = ipsum_in[(IPSUM_NUM*DATA_SIZE)-1:0];
-wire   [(OPSUM_NUM*DATA_SIZE)-1:0]     opsum;
+wire   [(IFMAP_NUM*IFMAP_DATA_SIZE)-1:0]    ifmap = ifmap_in[(IFMAP_NUM*IFMAP_DATA_SIZE)-1:0];
+wire   [(FILTER_NUM*FILTER_DATA_SIZE)-1:0]  filter = filter_in[(FILTER_NUM*FILTER_DATA_SIZE)-1:0];
+wire   [(IPSUM_NUM*PSUM_DATA_SIZE)-1:0]     ipsum = ipsum_in[(IPSUM_NUM*PSUM_DATA_SIZE)-1:0];
+wire   [(OPSUM_NUM*PSUM_DATA_SIZE)-1:0]     opsum;
 
 assign opsum_out = {opsum_enable,opsum};
 
@@ -67,6 +69,8 @@ PEStub #(
     .IFMAP_SPAD_SIZE(IFMAP_SPAD_SIZE),
     .FILTER_SPAD_SIZE(FILTER_SPAD_SIZE),
     .PSUM_SPAD_SIZE(PSUM_SPAD_SIZE),
+    .DATA_SIZE(DATA_SIZE),
+    .DATA_SIZE(DATA_SIZE),
     .DATA_SIZE(DATA_SIZE),
     .IFMAP_NUM(IFMAP_NUM),
     .FILTER_NUM(FILTER_NUM),
