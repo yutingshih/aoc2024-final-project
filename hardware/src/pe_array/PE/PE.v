@@ -12,12 +12,12 @@ module PE#(
 			FILTER_NUM = 1,
 			IPSUM_NUM = 4,
 			OPSUM_NUM = 4,
-			CONFIG_Q_BIT = 3, // channel count config
+			CONFIG_Q_BIT = 2, // channel count config
 			CONFIG_P_BIT = 5, // kernel count config
 			CONFIG_U_BIT = 4, // stride config
 			CONFIG_S_BIT = 4, // filter width config
-			CONFIG_F_BIT = 12, // ifmap width config
-			CONFIG_W_BIT = 12, // ofmap width config
+			CONFIG_F_BIT = 8, // ifmap width config
+			CONFIG_W_BIT = 8, // ofmap width config
 			MA_X = 0,
 			MA_Y = 0
 )   (
@@ -48,12 +48,12 @@ module PE#(
     input [CONFIG_F_BIT-1:0] config_F,
     input [CONFIG_W_BIT-1:0] config_W
     /* 
-        q(channel, 3b),
+        q(channel, 2b),
         p(kernel, 5b),
         U(stride, 4b), 
         S(filter width, 4b),
-        F(ofmap width, 12b),
-        W(ifmap width, 12b),
+        F(ofmap width, 8b),
+        W(ifmap width, 8b),
     */
 );
 

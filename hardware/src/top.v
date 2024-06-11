@@ -111,8 +111,6 @@ reg [PSUM_DATA_SIZE*FILTER_NUM-1:0] ipsum_value;
 /* Read Wrtie Mux */
 
 
-
-
 controller #(
     .XBUS_NUMS(XBUS_NUMS),
     .PE_NUMS(PE_NUMS),

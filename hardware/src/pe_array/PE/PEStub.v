@@ -24,10 +24,10 @@ module PEStub #(
     input rst,
     input enable,
     /* Data Flow */
-    input   [(IFMAP_NUM*DATA_SIZE)-1:0]     ifmap,
-    input   [(FILTER_NUM*DATA_SIZE)-1:0]    filter,
-    input   [(IPSUM_NUM*DATA_SIZE)-1:0]     ipsum,
-    output  [(OPSUM_NUM*DATA_SIZE)-1:0]     opsum,
+    input   [(IFMAP_NUM*IFMAP_DATA_SIZE)-1:0]     ifmap,
+    input   [(FILTER_NUM*FILTER_DATA_SIZE)-1:0]    filter,
+    input   [(IPSUM_NUM*PSUM_DATA_SIZE)-1:0]     ipsum,
+    output  [(OPSUM_NUM*PSUM_DATA_SIZE)-1:0]     opsum,
     /* Control Signal */
     input ifmap_enable,
     output wire ifmap_ready,
@@ -55,13 +55,14 @@ module PEStub #(
     */
 );
 assign ifmap_ready = 1'b1;
+assign filter_ready = 1'b1;
 wire ifmap_get = (ifmap_enable & ifmap_ready);
+wire filter_get = (filter_enable & filter_ready);
 
-reg ipsum_reg
 
 assign opsum_enable = 1'b1;
 wire [7:0] d = MA_X+MA_Y+3;
-assign opsum = {d,d,d,d} + ipsum_reg;
+assign opsum = {d,d,d,d};
 
 /* stub for debug */
 string fname;
@@ -78,14 +79,33 @@ end
 
 always @(posedge clk or posedge rst) begin
     if(ifmap_get) begin
+        $sformat(fname,"%s/PE_STUB_Y%02d_X%02d.log",`OUTPUT_PATH,MA_Y,MA_X);
         fd = $fopen(fname,"a");
-        $fdisplay(fd, "[ifmap_get] data = %5d", ifmap);
+        $fdisplay(fd, "[ifmap_get] data = %8h", ifmap);
         $fclose(fd);  
     end
-    if(ifmap_get) begin
+    if(set_info) begin
+        $sformat(fname,"%s/PE_STUB_Y%02d_X%02d.log",`OUTPUT_PATH,MA_Y,MA_X);
         fd = $fopen(fname,"a");
-        $fdisplay(fd, "[ipsum_get] data = %5d", ifmap);
-        $fclose(fd);
+        $fdisplay(fd, "[set_info] config_q = %5d", config_q);
+        $fdisplay(fd, "[set_info] config_p = %5d", config_p);
+        $fdisplay(fd, "[set_info] config_U = %5d", config_U);
+        $fdisplay(fd, "[set_info] config_S = %5d", config_S);
+        $fdisplay(fd, "[set_info] config_F = %5d", config_F);
+        $fdisplay(fd, "[set_info] config_W = %5d", config_W);        
+        $fclose(fd);  
+    end
+    if(filter_get) begin
+        $sformat(fname,"%s/PE_STUB_Y%02d_X%02d.log",`OUTPUT_PATH,MA_Y,MA_X);
+        fd = $fopen(fname,"a");
+        $fdisplay(fd, "[filter_get] data = %5d %5d %5d %5d", 
+            $signed(filter[FILTER_DATA_SIZE-1:0]),
+            $signed(filter[FILTER_DATA_SIZE*2-1:FILTER_DATA_SIZE]),
+            $signed(filter[FILTER_DATA_SIZE*3-1:FILTER_DATA_SIZE*2]),
+            $signed(filter[FILTER_DATA_SIZE*4-1:FILTER_DATA_SIZE*3])
+            );
+        //$display("[filter_get] data = %5d [x] %2d [y] %2d", filter,MA_X,MA_Y);
+        $fclose(fd);  
     end
 end
 

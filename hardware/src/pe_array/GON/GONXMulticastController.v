@@ -43,10 +43,10 @@ module  GONXMulticastController
 
     // debug
     /*always @(posedge clk)begin
-        /*if(set_id) begin
+        if(set_id) begin
             $display("(%d, %d) -> %d",MA_X, MA_Y,id);
-        end*/
-        /*if(tag == id) begin
+        end
+        if(tag == id) begin
             $display("(%d, %d) -> tag = id (tag = %d, id = %d)",MA_X, MA_Y,tag, id);
         end
     end*/

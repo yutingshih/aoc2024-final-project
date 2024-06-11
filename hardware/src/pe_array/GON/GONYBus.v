@@ -2,10 +2,10 @@
 
 module GONYBus #(
     parameter MASTER_NUMS = 14,
-    parameter ID_LEN = 5,
-    parameter ROW_LEN = 4,
-    parameter VALUE_LEN = 32,
-    parameter MA_X = 0
+              ID_LEN = 5,
+              ROW_LEN = 4,
+              VALUE_LEN = 32,
+              MA_X = 0
 ) (
     input clk,
     input rst,
@@ -50,7 +50,6 @@ module GONYBus #(
             .ID_LEN(ID_LEN),
             .ROW_LEN(ROW_LEN),
             .VALUE_LEN(VALUE_LEN),
-            .MA_X(MA_X),
             .MA_Y(i)
         ) mc (
             .clk(clk),

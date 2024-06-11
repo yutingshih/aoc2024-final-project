@@ -8,6 +8,10 @@ GIN: output
 GON: output
 	vcs -R -sverilog ./test/GON_tb.sv -debug_access+all -full64 +define+USE_STUB
 
+PEarray: output
+	python ./test/PEarray_test_data/auto_gen.py
+	vcs -R -sverilog ./test/PEarray_tb.sv -debug_access+all -full64 +define+USE_STUB
+
 output:
 	mkdir -p output
 

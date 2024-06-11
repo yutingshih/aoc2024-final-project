@@ -33,7 +33,7 @@ module  GINMulticastController
     end
 
     // ready 
-    assign ready_out = ready_in;
+    assign ready_out = (tag == id) ? ready_in: 1'b1;
 
     // enable
     assign enable_out = (ready_in & (tag == id) & enable_in)? 1'b1:1'b0;
@@ -41,4 +41,19 @@ module  GINMulticastController
     // value
     assign value_out = (enable_out)? value_in : 'd0;
     
+    /* Debug */
+    
+    /*always @(set_id) begin
+        if(set_id==0)begin
+            $display("[X]  %2d [Y] %2d [id] %2d", MA_X,MA_Y, id);
+        end
+    end*/
+    
+    
+    /*always @(tag) begin
+        if(enable_out)begin
+            $display("[X]  %2d [Y] %2d [id] %2d", MA_X,MA_Y, id);
+        end
+    end*/
+
 endmodule
