@@ -3,7 +3,7 @@ module  GONYMulticastController
     parameter ROW_LEN = 4,
     parameter ID_LEN = 5,
     parameter VALUE_LEN = 32,
-    parameter MA_Y  // machine address (for debug)
+    parameter MA_Y = 0  // machine address (for debug)
 )
 (
     input clk,

@@ -2,8 +2,8 @@ module  GINMulticastController
 #(
     parameter ID_LEN = 4,
     parameter VALUE_LEN = 32,
-    parameter MA_X, // machine address (for debug)
-    parameter MA_Y  // machine address (for debug)
+    parameter MA_X = 0, // machine address (for debug)
+    parameter MA_Y = 0  // machine address (for debug)
 )
 (
     input clk,
