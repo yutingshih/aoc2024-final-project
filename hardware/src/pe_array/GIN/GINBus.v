@@ -14,8 +14,8 @@ module GINBus #(
     input [VALUE_LEN+ID_LEN:0] enable_tag_value,
 
     /* Master IO */
-    input master_ready [MASTER_NUMS-1:0],
-    output [VALUE_LEN:0] master_enable_data [MASTER_NUMS-1:0],
+    input [MASTER_NUMS-1:0] master_ready ,
+    output wire [(VALUE_LEN+1)*MASTER_NUMS-1:0] master_enable_data,
 
     /* config */
     input set_id,
@@ -53,11 +53,11 @@ module GINBus #(
             .id(scan_chain[i+1]), // for scan chain
             .tag(tag),
             .enable_in(enable),
-            .enable_out(master_enable_data[i][VALUE_LEN]),
+            .enable_out(master_enable_data[i*(VALUE_LEN+1)+VALUE_LEN]),
             .ready_in(master_ready[i]),
             .ready_out(ready_check[i]),
             .value_in(value),
-            .value_out(master_enable_data[i][VALUE_LEN-1:0])
+            .value_out(master_enable_data[i*(VALUE_LEN+1)+VALUE_LEN-1:i*(VALUE_LEN+1)])
         );
     end
     

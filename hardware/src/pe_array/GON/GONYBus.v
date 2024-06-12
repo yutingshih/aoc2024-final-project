@@ -15,8 +15,8 @@ module GONYBus #(
     output wire [VALUE_LEN:0] enable_value,
 
     /* Master I/O */
-    output [ID_LEN:0] master_ready_tag [MASTER_NUMS-1:0],
-    input [VALUE_LEN:0] master_enable_data [MASTER_NUMS-1:0],
+    output [(ID_LEN+1)*MASTER_NUMS-1:0] master_ready_tag,
+    input [(VALUE_LEN+1)*MASTER_NUMS-1:0] master_enable_data,
 
     /* config */
     input set_id,
@@ -58,14 +58,14 @@ module GONYBus #(
             .id_in(scan_chain[i]),
             .id(scan_chain[i+1]), // for scan chain
             .tag(tag),
-            .enable_in(master_enable_data[i][VALUE_LEN]),
+            .enable_in(master_enable_data[i*(VALUE_LEN+1)+VALUE_LEN]),
             .enable_out(enable_check[i]),
             .ready_in(ready),
-            .ready_out(master_ready_tag[i][ID_LEN]),
-            .value_in(master_enable_data[i][VALUE_LEN-1:0]),
+            .ready_out(master_ready_tag[i*(ID_LEN+1)+ID_LEN]),
+            .value_in(master_enable_data[i*(VALUE_LEN+1)+VALUE_LEN-1:i*(VALUE_LEN+1)]),
             .value_out(value_out[i]), // multi-Fan-in
             .tag_in(id),
-            .tag_out(master_ready_tag[i][ID_LEN-1:0])
+            .tag_out(master_ready_tag[i*(ID_LEN+1)+ID_LEN-1:i*(ID_LEN+1)])
         );
         assign value_gather[i+1] = value_gather[i] | value_out[i];
     end

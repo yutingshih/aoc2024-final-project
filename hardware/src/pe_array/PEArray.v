@@ -99,24 +99,24 @@ wire [ROW_LEN-1:0] row_scan_filterGIN_to_ipsumGIN;
 wire [ROW_LEN-1:0] row_scan_ipsumGIN_to_opsumGON;
 
 /* PE-BUS wire */
-wire ifmap_bus_ready[PE_NUMS*XBUS_NUMS-1:0] ;
-wire [IFMAP_DATA_SIZE*IFMAP_NUM:0] ifmap_bus_enable_data [XBUS_NUMS*PE_NUMS - 1:0];
+wire [PE_NUMS*XBUS_NUMS-1:0]ifmap_bus_ready;
+wire [(IFMAP_DATA_SIZE*IFMAP_NUM+1)*(XBUS_NUMS*PE_NUMS)-1:0] ifmap_bus_enable_data;
 
-wire filter_bus_ready[PE_NUMS*XBUS_NUMS-1:0] ;
-wire [FILTER_DATA_SIZE*FILTER_NUM:0] filter_bus_enable_data [XBUS_NUMS*PE_NUMS - 1:0];
+wire [PE_NUMS*XBUS_NUMS-1:0]filter_bus_ready;
+wire [(FILTER_DATA_SIZE*FILTER_NUM+1)*(XBUS_NUMS*PE_NUMS)-1:0] filter_bus_enable_data;
 
-wire ipsum_bus_ready[PE_NUMS*XBUS_NUMS-1:0]; 
-wire [PSUM_DATA_SIZE*IPSUM_NUM:0] ipsum_bus_enable_data [XBUS_NUMS*PE_NUMS - 1:0];
+wire [PE_NUMS*XBUS_NUMS-1:0]ipsum_bus_ready; 
+wire [(PSUM_DATA_SIZE*IPSUM_NUM+1)*(XBUS_NUMS*PE_NUMS)-1:0] ipsum_bus_enable_data;
 
-wire opsum_bus_ready[PE_NUMS*XBUS_NUMS-1:0] ;
-wire [PSUM_DATA_SIZE*OPSUM_NUM:0] opsum_bus_enable_data [XBUS_NUMS*PE_NUMS - 1:0];
+wire [PE_NUMS*XBUS_NUMS-1:0]opsum_bus_ready;
+wire [(PSUM_DATA_SIZE*OPSUM_NUM+1)*(XBUS_NUMS*PE_NUMS)-1:0] opsum_bus_enable_data;
 
 /* PE-Local Network wire */
-wire ipsum_LN_ready[PE_NUMS*XBUS_NUMS-1:0]; 
-wire [PSUM_DATA_SIZE*IPSUM_NUM:0] ipsum_LN_enable_data [XBUS_NUMS*PE_NUMS - 1:0];
+wire [PE_NUMS*XBUS_NUMS-1:0]ipsum_LN_ready; 
+wire [(PSUM_DATA_SIZE*IPSUM_NUM+1)*(XBUS_NUMS*PE_NUMS)-1:0] ipsum_LN_enable_data;
 
-wire opsum_LN_ready[PE_NUMS*XBUS_NUMS-1:0] ;
-wire [PSUM_DATA_SIZE*OPSUM_NUM:0] opsum_LN_enable_data [XBUS_NUMS*PE_NUMS - 1:0];
+wire [PE_NUMS*XBUS_NUMS-1:0]opsum_LN_ready;
+wire [(PSUM_DATA_SIZE*OPSUM_NUM+1)*(XBUS_NUMS*PE_NUMS)-1:0] opsum_LN_enable_data;
 
 /* IFMAP GIN */
 GIN #(
@@ -262,17 +262,17 @@ for (i = 0;i < XBUS_NUMS-1; i = i + 1) begin
             .connect_flag(LN_config_in[i]), // connect Local Network
 
             /* ipsum to PE */
-            .ipsum(ipsum_LN_enable_data[i*PE_NUMS+j]), // data + enable
+            .ipsum(ipsum_LN_enable_data[(i*PE_NUMS+j+1)*(PSUM_DATA_SIZE*IPSUM_NUM+1)-1:(i*PE_NUMS+j)*(PSUM_DATA_SIZE*IPSUM_NUM+1)]), // data + enable
             .ipsum_ready(ipsum_LN_ready[i*PE_NUMS+j]),
             /* opsum from PE */
             .opsum_ready(opsum_LN_ready[(i+1)*PE_NUMS+j]),
-            .opsum(opsum_LN_enable_data[(i+1)*PE_NUMS+j]), // data + enable
+            .opsum(opsum_LN_enable_data[(i*PE_NUMS+j+1)*(PSUM_DATA_SIZE*OPSUM_NUM+1)-1:(i*PE_NUMS+j)*(PSUM_DATA_SIZE*OPSUM_NUM+1)]), // data + enable
             /* ipsum from bus */
-            .ipsum_bus(ipsum_bus_enable_data[i*PE_NUMS+j]), // data + enable
+            .ipsum_bus(ipsum_bus_enable_data[(i*PE_NUMS+j+1)*(PSUM_DATA_SIZE*IPSUM_NUM+1)-1:(i*PE_NUMS+j)*(PSUM_DATA_SIZE*IPSUM_NUM+1)]), // data + enable
             .ipsum_ready_bus(ipsum_bus_ready[i*PE_NUMS+j]),
             /* opsum to  bus */
             .opsum_ready_bus(opsum_bus_ready[(i+1)*PE_NUMS+j]),
-            .opsum_bus(opsum_bus_enable_data[(i+1)*PE_NUMS+j]) // data + enable
+            .opsum_bus(opsum_bus_enable_data[(i*PE_NUMS+j+1)*(PSUM_DATA_SIZE*OPSUM_NUM+1)-1:(i*PE_NUMS+j)*(PSUM_DATA_SIZE*OPSUM_NUM+1)]) // data + enable
         );
     end
 end
@@ -304,17 +304,17 @@ for (i = 0;i < XBUS_NUMS; i = i + 1) begin
             .rst(rst),
             .enable(enable),
             /* Wrapper */
-            .ifmap_in(ifmap_bus_enable_data[i*PE_NUMS+j]), // data + enable
+            .ifmap_in(ifmap_bus_enable_data[(i*PE_NUMS+j+1)*(IFMAP_DATA_SIZE*IFMAP_NUM+1)-1:(i*PE_NUMS+j)*(IFMAP_DATA_SIZE*IFMAP_NUM+1)]), // data + enable
             .ifmap_ready(ifmap_bus_ready[i*PE_NUMS+j]),
 
-            .filter_in(filter_bus_enable_data[i*PE_NUMS+j]), // data + enable
+            .filter_in(filter_bus_enable_data[(i*PE_NUMS+j+1)*(FILTER_DATA_SIZE*FILTER_NUM+1)-1:(i*PE_NUMS+j)*(FILTER_DATA_SIZE*FILTER_NUM+1)]), // data + enable
             .filter_ready(filter_bus_ready[i*PE_NUMS+j]),
 
-            .ipsum_in(ipsum_LN_enable_data[i*PE_NUMS+j]), // data + enable
+            .ipsum_in(ipsum_LN_enable_data[(i*PE_NUMS+j+1)*(PSUM_DATA_SIZE*IPSUM_NUM+1)-1:(i*PE_NUMS+j)*(PSUM_DATA_SIZE*IPSUM_NUM+1)]), // data + enable
             .ipsum_ready(ipsum_LN_ready[i*PE_NUMS+j]),
 
             .opsum_ready(opsum_LN_ready[i*PE_NUMS+j]),
-            .opsum_out(opsum_LN_enable_data[i*PE_NUMS+j]), // data + enable
+            .opsum_out(opsum_LN_enable_data[(i*PE_NUMS+j+1)*(PSUM_DATA_SIZE*OPSUM_NUM+1)-1:(i*PE_NUMS+j)*(PSUM_DATA_SIZE*OPSUM_NUM+1)]), // data + enable
 
             .config_in({set_pe_info,config_W,config_F,config_S,config_U,config_p,config_q}) // concat
         );

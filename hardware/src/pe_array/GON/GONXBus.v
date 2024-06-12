@@ -14,8 +14,8 @@ module GONXBus #(
     output [VALUE_LEN:0] enable_value,
 
     /* Master I/O */
-    output master_ready_tag [MASTER_NUMS-1:0],
-    input [VALUE_LEN:0] master_enable_data [MASTER_NUMS-1:0],
+    output [MASTER_NUMS-1:0] master_ready_tag,
+    input [(VALUE_LEN+1)*MASTER_NUMS-1:0] master_enable_data,
 
     /* config */
     input set_id,
@@ -54,11 +54,11 @@ module GONXBus #(
             .id_in(scan_chain[i]),
             .id(scan_chain[i+1]), // for scan chain
             .tag(tag),
-            .enable_in(master_enable_data[i][VALUE_LEN]),
+            .enable_in(master_enable_data[i*(VALUE_LEN+1)+VALUE_LEN]),
             .enable_out(enable_check[i]),
             .ready_in(ready),
             .ready_out(master_ready_tag[i]),
-            .value_in(master_enable_data[i][VALUE_LEN-1:0]),
+            .value_in(master_enable_data[i*(VALUE_LEN+1)+VALUE_LEN-1:i*(VALUE_LEN+1)]),
             .value_out(value_out[i]) // multi-Fan-in
         );
         assign value_gather[i+1] = value_gather[i] | value_out[i];

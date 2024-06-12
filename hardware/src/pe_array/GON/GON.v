@@ -27,8 +27,8 @@ module GON #(
     output wire [ROW_LEN-1:0] row_scan_out,
 
     /* PE IO */
-    output pe_ready [PE_NUMS*XBUS_NUMS-1:0],
-    input [VALUE_LEN:0] pe_enable_data [PE_NUMS*XBUS_NUMS-1:0]
+    output [PE_NUMS*XBUS_NUMS-1:0] pe_ready,
+    input [(VALUE_LEN+1)*PE_NUMS*XBUS_NUMS-1:0] pe_enable_data
     
 );
 
@@ -39,8 +39,8 @@ module GON #(
     assign enable = enable_value[VALUE_LEN];
 
     /* YBus - XBus connections */
-    wire [ID_LEN:0] xbus_ready_tag [XBUS_NUMS-1:0];
-    wire [VALUE_LEN:0] xbus_enable_data [XBUS_NUMS-1:0];
+    wire [(ID_LEN+1)*XBUS_NUMS-1:0] xbus_ready_tag;
+    wire [(VALUE_LEN+1)*XBUS_NUMS-1:0] xbus_enable_data;
 
     /* YBus */
     GONYBus #(
@@ -84,12 +84,12 @@ module GON #(
             .rst(rst),
             
             /* Slave I/O */
-            .ready_tag(xbus_ready_tag[i]),
-            .enable_value(xbus_enable_data[i]),
+            .ready_tag(xbus_ready_tag[(i+1)*(ID_LEN+1)-1:i*(ID_LEN+1)]),
+            .enable_value(xbus_enable_data[(i+1)*(VALUE_LEN+1)-1:i*(VALUE_LEN+1)]),
 
             /* Master IO (to PEs)*/
             .master_ready_tag(pe_ready[(i+1)*PE_NUMS-1:i*PE_NUMS]),
-            .master_enable_data(pe_enable_data[(i+1)*PE_NUMS-1:i*PE_NUMS]),
+            .master_enable_data(pe_enable_data[(i+1)*(VALUE_LEN+1)*PE_NUMS-1:i*(VALUE_LEN+1)*PE_NUMS]),
             
             /* config */
             .set_id(set_id),

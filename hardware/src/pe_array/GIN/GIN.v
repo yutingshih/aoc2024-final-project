@@ -26,8 +26,8 @@ module GIN #(
     output wire [ROW_LEN-1:0] row_scan_out,
 
     /* PE IO */
-    input pe_ready [PE_NUMS*XBUS_NUMS-1:0],
-    output [VALUE_LEN:0] pe_enable_data [PE_NUMS*XBUS_NUMS-1:0]
+    input  [PE_NUMS*XBUS_NUMS-1:0] pe_ready,
+    output [(VALUE_LEN+1)*PE_NUMS*XBUS_NUMS-1:0] pe_enable_data
     
 );
 
@@ -35,8 +35,8 @@ module GIN #(
     wire [ROW_LEN+ID_LEN+VALUE_LEN:0] enable_tag_value = {enable, row_tag, col_tag, value};
 
     /* YBus - XBus connections */
-    wire xbus_ready [XBUS_NUMS-1:0];
-    wire [ID_LEN+VALUE_LEN:0] xbus_enable_data [XBUS_NUMS-1:0];
+    wire [XBUS_NUMS-1:0] xbus_ready ;
+    wire [(ID_LEN+VALUE_LEN+1)*XBUS_NUMS-1:0] xbus_enable_data;
 
     /* YBus */
     GINBus #(
@@ -80,11 +80,11 @@ module GIN #(
             
             /* Slave I/O */
             .ready(xbus_ready[i]),
-            .enable_tag_value(xbus_enable_data[i]),
+            .enable_tag_value(xbus_enable_data[(i+1)*(ID_LEN+VALUE_LEN+1)-1:i*(ID_LEN+VALUE_LEN+1)]),
 
             /* Master IO (to PEs)*/
             .master_ready(pe_ready[(i+1)*PE_NUMS-1:i*PE_NUMS]),
-            .master_enable_data(pe_enable_data[(i+1)*PE_NUMS-1:i*PE_NUMS]),
+            .master_enable_data(pe_enable_data[(i+1)*(VALUE_LEN+1)*PE_NUMS-1:i*(VALUE_LEN+1)*PE_NUMS]),
             
             /* config */
             .set_id(set_id),

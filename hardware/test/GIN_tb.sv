@@ -31,8 +31,8 @@ logic set_row;
 logic [ROW_LEN-1:0] row_scan_in;
 logic [ROW_LEN-1:0] row_scan_out;
 
-wire pe_ready [PE_NUMS*XBUS_NUMS-1:0];
-wire [VALUE_LEN:0] pe_enable_data [PE_NUMS*XBUS_NUMS-1:0];
+wire [PE_NUMS*XBUS_NUMS-1:0] pe_ready;
+wire [(VALUE_LEN+1)*PE_NUMS*XBUS_NUMS-1:0] pe_enable_data;
 
 // GIN
 GIN #(
@@ -78,7 +78,7 @@ for (i = 0;i < XBUS_NUMS; i = i + 1) begin
             .rst(rst),
             .enable(),
             /* Wrapper */
-            .ifmap_in(pe_enable_data[i*PE_NUMS+j]), // data + enable
+            .ifmap_in(pe_enable_data[(i*PE_NUMS+j+1)*(VALUE_LEN+1)-1:(i*PE_NUMS+j)*(VALUE_LEN+1)]), // data + enable
             .ifmap_ready(pe_ready[i*PE_NUMS+j]),
 
             .filter_in(), // data + enable
