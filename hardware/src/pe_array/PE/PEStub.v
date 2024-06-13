@@ -11,7 +11,7 @@ module PEStub #(
               FILTER_NUM = 4,
               IPSUM_NUM = 1,
               OPSUM_NUM = 1,
-              CONFIG_Q_BIT = 2, // channel count config
+              CONFIG_Q_BIT = 3, // channel count config
               CONFIG_P_BIT = 5, // kernel count config
               CONFIG_U_BIT = 4, // stride config
               CONFIG_S_BIT = 4, // filter width config

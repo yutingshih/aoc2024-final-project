@@ -150,7 +150,7 @@ class PE(object):
 import torch
 torch.manual_seed(123)
 def unittest():
-    print("[ Using Pytorch backend to Verify ]")
+    print("[ Using Pytorch backend to Verify ] unittest")
     ### Prepare data
     (n,q,H,W) = (1,4,1,224)
     (p,q,R,S) = (4,4,1,3)
@@ -159,11 +159,11 @@ def unittest():
     ifmap = torch.randint(low=-128, high=128, size=(n,q,H,W), dtype=torch.int16)
     filter = torch.randint(low=-128, high=128, size=(p,q,R,S), dtype=torch.int16)
     golden = torch.nn.functional.conv2d(ifmap, filter, stride=(U, U), padding=(0, 0))
-    #print("[ ifmap ]",ifmap)
-    #print("[ filter ]",filter)
-    #print("[ Golden ]",golden)
+    print("[ ifmap ]",ifmap.shape)
+    print("[ filter ]",filter.shape)
+    print("[ Golden ]",golden.shape)
     simulate_output = torch.zeros_like(golden)
-    print(simulate_output.shape)
+    #print(simulate_output.shape)
     
     ### Generate PE 
     #pe_set = [PE(MA_X = i) for i in range(R)] # default hardware configuration
@@ -220,7 +220,7 @@ def unittest():
     print("[Result Check] ", torch.equal(golden,simulate_output))
 
 def peset_test():
-    print("[ Using Pytorch backend to Verify ]")
+    print("[ Using Pytorch backend to Verify ] PE set test")
     ### Prepare data
     (n,q,H,W) = (1,4,3,224)
     (p,q,R,S) = (4,4,3,3)
@@ -229,11 +229,11 @@ def peset_test():
     ifmap = torch.randint(low=-128, high=128, size=(n,q,H,W), dtype=torch.int16)
     filter = torch.randint(low=-128, high=128, size=(p,q,R,S), dtype=torch.int16)
     golden = torch.nn.functional.conv2d(ifmap, filter, stride=(U, U), padding=(0, 0))
-    #print("[ ifmap ]",ifmap)
-    #print("[ filter ]",filter)
-    print("[ Golden ]",golden)
+    print("[ ifmap ]",ifmap.shape)
+    print("[ filter ]",filter.shape)
+    print("[ Golden ]",golden.shape)
     simulate_output = torch.zeros_like(golden)
-    print(simulate_output.shape)
+    #print(simulate_output.shape)
     
     ### Generate PE 
     pe_set = [PE(MA_X = i) for i in range(R)] # default hardware configuration
@@ -289,7 +289,7 @@ def peset_test():
                 psum =  [[0,]*q ] + [None,] * R
             F_ += 1 
 
-    print("[ simulate_output ]",simulate_output)
+    #print("[ simulate_output ]",simulate_output)
     print("[Result Check] ", torch.equal(golden,simulate_output))
 
 if __name__ == "__main__":

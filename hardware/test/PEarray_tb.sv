@@ -223,7 +223,7 @@ initial begin
     set_id = 0; 
     $display("[PEarray] set ROW/ID done.");
     #`CYCLE;
-    $display("[PEarray] set ID.");
+    $display("[PEarray] set LN.");
     set_ln_info = 1;  LN_config_in = {glb[addr+3],glb[addr+2],glb[addr+1],glb[addr]};
     addr = addr+4;
     #`CYCLE;

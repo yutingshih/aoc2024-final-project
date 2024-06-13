@@ -6,17 +6,26 @@
 
     Support Operation: Convolution2D / ReLU / MaxPooling2D / AvgPooling2D
 */
+`define BYTE 8
+
 module controller #(
     parameter XBUS_NUMS = 12,
               PE_NUMS = 14,
               IFMAP_GIN_ROW_LEN = 4,
-              IFMAP_GIN_ID_LEN = 4,
+              IFMAP_GIN_ID_LEN = 5,
               FILTER_GIN_ROW_LEN = 4,
-              FILTER_GIN_ID_LEN = 4,
+              FILTER_GIN_ID_LEN = 5,
               IPSUM_GIN_ROW_LEN = 4,
-              IPSUM_GIN_ID_LEN = 4,
+              IPSUM_GIN_ID_LEN = 5,
               OPSUM_GON_ROW_LEN = 4,
-              OPSUM_GON_ID_LEN = 4,
+              OPSUM_GON_ID_LEN = 5,
+              IFMAP_DATA_SIZE = 8,
+              FILTER_DATA_SIZE = 16,
+              PSUM_DATA_SIZE = 32,
+              IFMAP_NUM = 4,
+              FILTER_NUM = 1,
+              IPSUM_NUM = 4,
+              OPSUM_NUM = 4,
               CONFIG_BITWIDTH = 32,
               ADDRESS_BITWIDTH = 32
 )(
@@ -29,36 +38,48 @@ module controller #(
 
     /* scalar configuration */
     input [CONFIG_BITWIDTH-1:0] computation_config,
-    input [CONFIG_BITWIDTH-1:0] convolution_param1,
-    input [CONFIG_BITWIDTH-1:0] convolution_param2,
     input [CONFIG_BITWIDTH-1:0] address_ifmap,
     input [CONFIG_BITWIDTH-1:0] address_filter,
     input [CONFIG_BITWIDTH-1:0] address_ipsum,
     input [CONFIG_BITWIDTH-1:0] address_opsum,
     input [CONFIG_BITWIDTH-1:0] address_scan_chain,
-    
+
+    /* Convolution parameters */
+    input [2:0]  config_q,
+    input [4:0]  config_p,
+    input [4:0]  config_U,
+    input [4:0]  config_S,
+    input [7:0]  config_F,
+    input [7:0]  config_W,
+    input [7:0]  config_H,
+    input [7:0]  config_E,
+    input [11:0]  config_C,
+    input [11:0]  config_M,
+    input [4:0]  config_t,
+    input [4:0]  config_r,
    
 
     /* scan chain information */
-    output set_pe_info,
-    output set_ln_info,
-    output set_id,
-    output set_row,
+    output reg [1:0] pe_config_id;
+    output reg set_pe_info,
+    output reg set_ln_info,
+    output reg set_id,
+    output reg set_row,
 
     /* NoC Control */
-    output [IFMAP_GIN_ROW_LEN-1:0]   ifmap_row_id, // IFMAP X-Bus
-    output [IFMAP_GIN_ID_LEN-1:0]    ifmap_col_id, // IFMAP Y-Bus PE id
-    output [FILTER_GIN_ROW_LEN-1:0]  filter_row_id, // FILTER X-Bus
-    output [FILTER_GIN_ID_LEN-1:0]   filter_col_id, // FILTER Y-Bus PE id
-    output [IPSUM_GIN_ROW_LEN-1:0]   ipsum_row_id, // IPSUM X-Bus
-    output [IPSUM_GIN_ID_LEN-1:0]    ipsum_col_id, // IPSUM Y-Bus PE id
-    output [OPSUM_GON_ROW_LEN-1:0]   opsum_row_id, // OPSUM X-Bus
-    output [OPSUM_GON_ID_LEN-1:0]    opsum_col_id, // OPSUM Y-Bus PE id
+    output reg [IFMAP_GIN_ROW_LEN-1:0]   ifmap_row_id, // IFMAP X-Bus
+    output reg [IFMAP_GIN_ID_LEN-1:0]    ifmap_col_id, // IFMAP Y-Bus PE id
+    output reg [FILTER_GIN_ROW_LEN-1:0]  filter_row_id, // FILTER X-Bus
+    output reg [FILTER_GIN_ID_LEN-1:0]   filter_col_id, // FILTER Y-Bus PE id
+    output reg [IPSUM_GIN_ROW_LEN-1:0]   ipsum_row_id, // IPSUM X-Bus
+    output reg [IPSUM_GIN_ID_LEN-1:0]    ipsum_col_id, // IPSUM Y-Bus PE id
+    output reg [OPSUM_GON_ROW_LEN-1:0]   opsum_row_id, // OPSUM X-Bus
+    output reg [OPSUM_GON_ID_LEN-1:0]    opsum_col_id, // OPSUM Y-Bus PE id
 
-    output ifmap_enable,
-    output filter_enable,
-    output ipsum_enable,
-    output opsum_ready,
+    output reg ifmap_enable,
+    output reg filter_enable,
+    output reg ipsum_enable,
+    output reg opsum_ready,
 
     input ifmap_ready,
     input filter_ready,
@@ -67,24 +88,24 @@ module controller #(
 
     /* 
         *** Read Data To Mux ***
-        0: Scan-chain ID network (only when set info)
-        1: Scan-chain ROW network (only when set info)
-        2: Scan-chain LN  (only when set info)
-        3: Scan-chain PE  (only when set info)
+        0: PE config  (only when set info)
+        1: Scan-chain ID network (only when set info)
+        2: Scan-chain ROW network (only when set info)
+        3: Scan-chain LN  (only when set info)
         4: IFMAP GIN
         5: FILTER GIN
         6: OFMAP GIN
         7: Pooling
     */
-    output [2:0] read_to_select,
+    output reg [3:0] read_to_select,
     /* 
         *** Read Data From Mux ***
         0: IARG-Buffer (BRAM)
         1: OARG-Buffer (BRAM)
     */
-    output read_from_select,
+    output reg read_from_select,
 
-    output [ADDRESS_BITWIDTH-1:] read_address,
+    output reg [ADDRESS_BITWIDTH-1:] read_address,
     /* 
         *** Write Data From Mux ***
         0: OPSUM GON
@@ -92,17 +113,22 @@ module controller #(
         2: Pooling Engine
         3: (Reserved)
     */
-    output [1:0] write_from_select, 
+    output reg [1:0] write_from_select, 
     /* 
         *** Write Data To Mux ***
         0: OARG-Buffer (BRAM)
         1: Pooling Engine
     */
-    output write_to_select,
-    output [ADDRESS_BITWIDTH-1:] write_address,
+    output reg write_to_select,
+    output reg [ADDRESS_BITWIDTH-1:] write_address,
 
-    output ram_enable,
-    output [3:0] ram_we,
+    output reg ram_enable,
+    output reg [3:0] ram_we,
+
+    output reg [1:0] ifmap_buffer_select,
+    output reg [1:0] ipsum_buffer_select,
+    output reg [1:0] opsum_buffer_select,
+    output wire padding
 );
 
 /* 
@@ -132,6 +158,11 @@ module controller #(
 reg [4:0] state, state_next;
 reg [ADDRESS_BITWIDTH:0] counter, counter_next;
 
+reg [ADDRESS_BITWIDTH:0] Scounter, Scounter_next;
+reg [ADDRESS_BITWIDTH:0] Rcounter, Rcounter_next;
+reg [ADDRESS_BITWIDTH:0] Qcounter, Qcounter_next;
+reg [ADDRESS_BITWIDTH:0] Pcounter, Pcounter_next;
+
 reg [ADDRESS_BITWIDTH:0] Fcounter, Fcounter_next;
 reg [ADDRESS_BITWIDTH:0] Wcounter, Wcounter_next;
 
@@ -141,10 +172,10 @@ reg [ADDRESS_BITWIDTH:0] Ecounter, Ecounter_next;
 reg [ADDRESS_BITWIDTH:0] Hcounter, Hcounter_next;
 
 reg [ADDRESS_BITWIDTH:0] Ccounter, Ccounter_next;
+reg [ADDRESS_BITWIDTH:0] Ucounter, Ucounter_next;
 
 reg [CONFIG_BITWIDTH-1:0] computation_config_reg;
-reg [CONFIG_BITWIDTH-1:0] convolution_param1_reg;
-reg [CONFIG_BITWIDTH-1:0] convolution_param2_reg;
+reg [CONFIG_BITWIDTH-1:0] pe_config_reg [2:0];
 reg [CONFIG_BITWIDTH-1:0] address_ifmap_reg;
 reg [CONFIG_BITWIDTH-1:0] address_filter_reg;
 reg [CONFIG_BITWIDTH-1:0] address_ipsum_reg;
@@ -166,51 +197,50 @@ wire use_filter = computation_config_reg[23];
 wire use_bias = computation_config_reg[24];
 wire use_scan_chain = computation_config_reg[25];
 
-wire [7:0] ifmap_W = convolution_param1_reg[7:0];
-wire [7:0] ifmap_H = convolution_param1_reg[15:8]; 
-wire [2:0] ifmap_C = convolution_param1_reg[18:16];
-wire [5:0] filter_NUM = convolution_param1_reg[24:19];
-
-wire [7:0] ofmap_E = convolution_param2_reg[7:0];
-wire [7:0] ofmap_F = convolution_param2_reg[15:8]; 
-wire [7:0] ofmap_M = convolution_param2_reg[23:16];
 
 
-wire [ADDRESS_BITWIDTH:0] Waddress = (Wcounter < conv_padding_left)? 'd0: Wcounter-conv_padding_left;
-wire [ADDRESS_BITWIDTH:0] Haddress = (Hcounter < conv_padding_top)? 'd0: Hcounter-conv_padding_top;
+assign padding = (
+    (Wcounter < conv_padding_left) || 
+    (Ecounter < conv_padding_top) || 
+    (Wcounter+conv_padding_left > config_W) || 
+    (Ecounter+conv_padding_top > config_H) 
+    );
+wire [ADDRESS_BITWIDTH:0] Waddress = (Wcounter < conv_padding_left)? 0: Wcounter-conv_padding_left;
+wire [ADDRESS_BITWIDTH:0] Haddress = (Ecounter < conv_padding_top)? 0: Ecounter-conv_padding_top;
 
-wire [ADDRESS_BITWIDTH:0] Ccounter, Ccounter_next;
 
-wire [ADDRESS_BITWIDTH:0] ifmap_addr_bias = ifmap_W *(ifmap_H * Ccounter + Hcounter) + Wcounter;
+wire [ADDRESS_BITWIDTH:0] ipsum_addr_bias = config_S *(config_S * Ccounter + Hcounter) + Wcounter;
 
-wire [ADDRESS_BITWIDTH:0] filter_addr_bias = conv_kernel_size *(conv_kernel_size * Ccounter + Hcounter) + Wcounter;
-
-wire [ADDRESS_BITWIDTH:0] ipsum_addr_bias = conv_kernel_size *(conv_kernel_size * Ccounter + Hcounter) + Wcounter;
+                
 
 parameter   SIDLE = 0,
             SCONFIG = 1,
             SPREREAD = 2,
-            SSET_ID = 3,
-            SSET_RAW = 4,
-            SSET_LN_INFO = 11,
-            SSET_PE_INFO = 12,
-            SREADY = 13,
-            SREAD_IFMAP = 14,
-            SPUT_IFMAP = 15,
-            SREAD_FILTER = 16,
-            SPUT_FILTER = 17,
-            SREAD_IPSUM = 18,
-            SPUT_IPSUM = 19,
+            SSET_PECONFIG = 3,
+            SSET_ID = 4,
+            SSET_RAW = 5,
+            SSET_LN_INFO = 6,
+            SSET_PE_INFO = 7,
+            SREADY = 9,
+            SREAD_FILTER = 10,
+            SPUT_FILTER = 11,
+            SREAD_IFMAP = 12,
+            SGATHER_IFMAP = 13,
+            SPUT_IFMAP = 14,
+            SCHECK_IPSUM = 16,
+            SREAD_IPSUM = 16,
+            SGATHER_IPSUM = 17,
+            SPUT_IPSUM = 18,
             SGET_OPSUM = 20,
             SWRITE_OPSUM = 21,
             SPUT_POOLING = 22,
             SGET_POOLING = 23,
             SDONE = 31;
 
-parameter   READ_TO_SCAN_ID = 0,
-            READ_TO_SCAN_ROW = 1,
-            READ_TO_SCAN_LN = 2,
-            READ_TO_SCAN_PE = 3,
+parameter   READ_TO_PE_CONFIG = 0,
+            READ_TO_SCAN_ID = 1,
+            READ_TO_SCAN_ROW = 2,
+            READ_TO_SCAN_LN = 3,
             READ_TO_IFMAPGIN = 4,
             READ_TO_FILTERGIN = 5,
             READ_TO_IPSUMGIN = 6,
@@ -230,11 +260,32 @@ parameter   WRITE_TO_OPSUMGON = 0,
 always @(posedge clk ) begin
     if(~rst) begin
         state <= SIDLE;
-        counter <= 'd0;
+        counter <= 0;
+        Scounter <= 0;
+        Rcounter <= 0;
+        Qcounter <= 0;
+        Pcounter <= 0;
+        Fcounter <= 0;
+        Wcounter <= 0;
+        Mcounter <= 0;
+        Ecounter <= 0;
+        Hcounter <= 0;
+        Ccounter <= 0;
         computation_config_reg;
     end else begin
         state <= state_next;
         counter <= counter_next;
+        Scounter <= Scounter_next;
+        Rcounter <= Rcounter_next;
+        Qcounter <= Qcounter_next;
+        Pcounter <= Pcounter_next;
+        Fcounter <= Fcounter_next;
+        Wcounter <= Wcounter_next;
+        Mcounter <= Mcounter_next;
+        Ecounter <= Ecounter_next;
+        Hcounter <= Hcounter_next;
+        Ccounter <= Ccounter_next;
+        Ucounter <= Ucounter_next;
     end
 end
 
@@ -264,6 +315,17 @@ end
 always @(*) begin
     state_next = SIDLE;
     counter_next = counter;
+    Scounter_next = Scounter;
+    Rcounter_next = Rcounter;
+    Qcounter_next = Qcounter;
+    Pcounter_next = Pcounter;
+    Fcounter_next = Fcounter;
+    Wcounter_next = Wcounter;
+    Mcounter_next = Mcounter;
+    Ecounter_next = Ecounter;
+    Hcounter_next = Hcounter;
+    Ccounter_next = Ccounter;
+    Ucounter_next = Ucounter;
     set_pe_info = 0;
     set_ln_info = 0;
     set_id = 0;
@@ -309,11 +371,22 @@ always @(*) begin
             end
         end
         SPREREAD: begin // read from BRAM address
-            state_next =  SSET_ID;
+            state_next =  SSET_PECONFIG;
             counter_next = counter + 'd1;
             read_from_select = READ_FROM_IARG_BUFFER;
             read_address = scan_chain_start_addr+counter;
             ram_enable = 1;
+        end
+        SSET_PECONFIG: begin
+            counter_next = counter + 'd1;
+            read_from_select = READ_FROM_IARG_BUFFER;
+            read_address = scan_chain_start_addr+counter;
+            ram_enable = 1;
+            read_to_select = READ_TO_PE_CONFIG;
+            pe_config_id = counter[1:0] - 1;
+            if(counter == 4)begin
+                set_pe_info = 1; 
+            end
         end
         SSET_ID: begin // read from BRAM address & write to id scan chain
             counter_next = counter + 'd1;
@@ -355,46 +428,134 @@ always @(*) begin
         end
         SREADY: begin
             state_next = SREAD_FILTER
-            counter_next = 'd0; 
+            counter_next = 0; 
         end
         SREAD_FILTER: begin  // TBD
-            counter_next = SREADY;
             read_from_select = READ_FROM_IARG_BUFFER;
-            read_address = filter_start_addr+counter;
+            read_address = address_filter_reg+(
+                (Mcounter+Pcounter)*config_C*config_S*config_S + (Ccounter+Qcounter) * config_S * config_S + Rcounter * config_S + Scounter
+                )*(FILTER_DATA_SIZE/`BYTE);
             ram_enable = 1;
+            state_next = SPUT_FILTER;
         end
         SPUT_FILTER: begin
+            read_from_select = READ_FROM_IARG_BUFFER;
             filter_enable = 1;
+            read_to_select = READ_TO_FILTERGIN;
+            filter_col_id = Scounter; 
+            filter_row_id = Ccounter;
             if(filter_ready)begin
                 state_next = SREAD_FILTER;
+                if(Qcounter + 1 == config_q)begin
+                    Qcounter_next = 0;
+                    if(Scounter + 1 == config_S)begin
+                        Scounter_next = 0;
+                        if(Pcounter + 1 == config_p)begin
+                            Pcounter_next = 0;
+                            if(Rcounter + 1 == config_r)begin
+                                Rcounter_next = 0;
+                                if(Mcounter + config_p == config_M)begin
+                                    Mcounter_next = 0;
+                                    if(Ccounter + config_q == config_C)begin
+                                        Ccounter_next = 0;
+                                        state_next = SREAD_IFMAP;
+                                    end else begin
+                                        Ccounter_next = Ccounter + config_q;
+                                    end
+                                end else begin
+                                    Mcounter_next = Mcounter + config_p;
+                                end
+                            end else begin
+                                Rcounter_next = Rcounter + 1;
+                            end
+                        end else begin
+                            Pcounter_next = Pcounter + 1;
+                        end
+                    end else begin
+                        Scounter_next = Scounter + 1;
+                    end
+                end else begin
+                    Qcounter_next = Qcounter + 1;
+                end
+            end
+            else begin
+                state_next = state;
             end
         end
         SREAD_IFMAP: begin
-            
+            read_from_select = READ_FROM_IARG_BUFFER;
+            read_address = address_ifmap_reg+(
+                (Ccounter+Qcounter)*config_H*config_W + (Haddress) * config_W + Waddress
+                )*(IFMAP_DATA_SIZE/`BYTE);
+            ram_enable = 1;
+            state_next = SGATHER_IFMAP;
+        end
+        SGATHER_IFMAP: begin
+            read_from_select = READ_FROM_IARG_BUFFER;
+            read_to_select = READ_TO_IFMAPGIN;
+            ifmap_buffer_select = Qcounter;
+            if(Qcounter+1 == config_q)begin
+                Qcounter_next = 0;
+                state_next = SPUT_IFMAP;
+            end
         end
         SPUT_IFMAP: begin
-            
+            ifmap_col_id = Hcounter; 
+            ifmap_row_id = Ccounter;
+            ifmap_enable = 1;
+            if(ifmap_ready)begin
+                if(Ecounter + 1 == config_E)begin
+                    Ecounter_next = 0;
+                    if(Ccounter + config_q == config_C)begin  //TBD
+                        Ccounter_next = 0;
+                        if(Ucounter + 1 == config_U)begin  //TBD
+                            Ucounter_next = 0;
+                            state_next = SREAD_IPSUM;
+                            Wcounter_next = Wcounter + 1;
+                        end else begin
+                            Ucounter_next = Ucounter + 1;
+                        end
+                    end else begin
+                        Ccounter_next = Ccounter + config_q;
+                    end
+                end else begin
+                    Ecounter_next = Ecounter + 1;
+                end
+            end
         end
         SREAD_IPSUM: begin
-            
+            read_from_select = READ_FROM_IARG_BUFFER;
+            read_address = address_ipsum_reg+(
+                (Mcounter+Pcounter)*config_E*config_F + (Ecounter) * config_F + Fcounter
+                )*(IFMAP_DATA_SIZE/`BYTE);
+            ram_enable = 1;
+            state_next = SGATHER_IPSUM;
+        end
+        SGATHER_IPSUM: begin
+            ;
         end
         SPUT_IPSUM: begin
-            
+            ipsum_col_id = Ecounter;
+            ipsum_row_id = Mcounter;
+            if(ipsum_ready)begin
+                state_next = SREAD_IPSUM;
+            end
         end
         SGET_OPSUM: begin
-            
+            ;
         end
         SWRITE_OPSUM: begin
-            
+            ;
         end
         SPUT_POOLING: begin
-            
+            ;
         end
         SGET_POOLING: begin
-            
+            ;
         end
         SDONE: begin
-            
+            finish = 1;
+            state_next = SIDLE;
         end
         default: state_next = SIDLE;
     endcase

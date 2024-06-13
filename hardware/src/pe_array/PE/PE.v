@@ -1,5 +1,3 @@
-`include "def.svh"
-
 module PE#(
     parameter IFMAP_SPAD_SIZE = 12,
 			FILTER_SPAD_SIZE = 192,
@@ -12,12 +10,12 @@ module PE#(
 			FILTER_NUM = 1,
 			IPSUM_NUM = 4,
 			OPSUM_NUM = 4,
-			CONFIG_Q_BIT = 2, // channel count config
+			CONFIG_Q_BIT = 3, // channel count config
 			CONFIG_P_BIT = 5, // kernel count config
 			CONFIG_U_BIT = 4, // stride config
 			CONFIG_S_BIT = 4, // filter width config
-			CONFIG_F_BIT = 8, // ifmap width config
-			CONFIG_W_BIT = 8, // ofmap width config
+			CONFIG_F_BIT = 12, // ifmap width config
+			CONFIG_W_BIT = 12, // ofmap width config
 			MA_X = 0,
 			MA_Y = 0
 )   (
@@ -48,12 +46,12 @@ module PE#(
     input [CONFIG_F_BIT-1:0] config_F,
     input [CONFIG_W_BIT-1:0] config_W
     /* 
-        q(channel, 2b),
+        q(channel, 3b),
         p(kernel, 5b),
         U(stride, 4b), 
         S(filter width, 4b),
-        F(ofmap width, 8b),
-        W(ifmap width, 8b),
+        F(ofmap width, 12b),
+        W(ifmap width, 12b),
     */
 );
 
@@ -96,7 +94,7 @@ wire [PSUM_DATA_SIZE-1:0] mul;
 wire [PSUM_DATA_SIZE-1:0] sum;
 reg [PSUM_DATA_SIZE-1:0] opsum_reg[3:0];
 //assign mul = (current_state == IPSUM) ?ipsum_reg[ipsum_count] :((current_state == READ_AND_COMPUTE)?({{16{cur_ifmap[7]}},cur_ifmap} * {{16{cur_filter[7]}},cur_filter}) :mul);
-assign mul = (current_state == IPSUM) ?ipsum_reg[ipsum_count] :mul;
+assign mul = (current_state == IPSUM) ?ipsum_reg[ipsum_count-1] :mul;
 assign sum = psum[kernel_count] + mul;
 
 
@@ -116,26 +114,12 @@ assign cur_ifmap = ifmap_reg[mac_count];
 wire done = ((ofcol_count == config_F_reg) && (current_state == SHIFT));
 
 
-always @(*) begin
-	if(ipsum_valid)begin
-		ipsum_reg[0] = ipsum[IPSUM_DATA_SIZE-1:0];
-		ipsum_reg[1] = ipsum[2*IPSUM_DATA_SIZE-1:IPSUM_DATA_SIZE];
-		ipsum_reg[2] = ipsum[3*IPSUM_DATA_SIZE:2*IPSUM_DATA_SIZE];
-		ipsum_reg[3] = ipsum[4*IPSUM_DATA_SIZE:3*IPSUM_DATA_SIZE];
-	end
-	if(current_state == IPSUM)begin
-		opsum_reg[ipsum_count] = (overflow == 1'd1) ?((psum[kernel_count][PSUM_DATA_SIZE-1] == 1'd1) ?(32'h80000000) :(32'h7fffffff)) :sum;
-	end
+// always @(*) begin
+// 	if(current_state == IPSUM)begin
+// 		opsum_reg[ipsum_count] = (overflow == 1'd1) ?((psum[kernel_count][PSUM_DATA_SIZE-1] == 1'd1) ?(32'h80000000) :(32'h7fffffff)) :sum;
+// 	end
 	
-	else if (current_state == OUTPUT) begin
-		if(opsum_ready)begin
-			opsum[PSUM_DATA_SIZE-1:0] <= opsum_reg[0];
-			opsum[2*PSUM_DATA_SIZE-1:PSUM_DATA_SIZE] <= opsum_reg[1];
-			opsum[3*PSUM_DATA_SIZE-1:2*PSUM_DATA_SIZE] <= opsum_reg[2];
-			opsum[4*PSUM_DATA_SIZE-1:3*PSUM_DATA_SIZE] <= opsum_reg[3];
-		end
-	end
-end
+// end
 
 
 
@@ -177,7 +161,7 @@ always @(*) begin
             
         end
 		IPSUM:begin
-			if(ipsum_count == (IPSUM_NUM-1))begin
+			if(ipsum_count == (IPSUM_NUM))begin
 				next_state = OUTPUT;
 			end
 			else begin
@@ -240,9 +224,9 @@ always @(posedge clk or posedge rst) begin
 		for (i=0 ;i<16 ;i=i+1) begin
 			psum [i] <= 0;
 		end
-		for (i=0 ;i<4 ;i=i+1) begin
-			ipsum_reg[i] <= 0;
-		end
+		// for (i=0 ;i<4 ;i=i+1) begin
+		// 	ipsum_reg[i] <= 0;
+		// end
 		config_q_reg <= 3'd0;
         config_p_reg <= 5'd0;
         config_U_reg <= 4'd0;
@@ -440,6 +424,7 @@ always @(posedge clk or posedge rst) begin
 							kernel_count <= 0;
 							mac_filter_count <= 0;
 							filter_done <= 1;
+							
 						end
 						
 					end	
@@ -451,25 +436,41 @@ always @(posedge clk or posedge rst) begin
 				
 			end
 			IPSUM:begin
-				if(ipsum_valid || (ipsum_count != 0))begin
-					if(ipsum_count < (IPSUM_NUM-1))begin
+				if(ipsum_valid && (ipsum_count == 0))begin
+					
+					ipsum_reg[0] <= ipsum[IPSUM_DATA_SIZE-1:0];
+					ipsum_reg[1] <= ipsum[2*IPSUM_DATA_SIZE-1:IPSUM_DATA_SIZE];
+					ipsum_reg[2] <= ipsum[3*IPSUM_DATA_SIZE-1:2*IPSUM_DATA_SIZE];
+					ipsum_reg[3] <= ipsum[4*IPSUM_DATA_SIZE-1:3*IPSUM_DATA_SIZE];
+					ipsum_count <= ipsum_count + 1;
+				end
+				else if (ipsum_count != 0)begin
+					if(ipsum_count < (IPSUM_NUM))begin
 						ipsum_count <= ipsum_count + 1;
 					end	
 					else begin
 						ipsum_count <= 0;
 					end
-					if(kernel_count < (config_p - 1))begin
+					if(kernel_count < 15)begin
 						kernel_count <= kernel_count + 1;
 					end
 					else begin
 						kernel_count <= 0;
 					end
-
+					psum[kernel_count] <= 0;
+					opsum_reg[ipsum_count-1] <= (overflow == 1'd1) ?((psum[kernel_count][PSUM_DATA_SIZE-1] == 1'd1) ?(32'h80000000) :(32'h7fffffff)) :sum;
 				end
+				
+				
 			end
 			OUTPUT:begin
 				if(opsum_ready)begin
 					ipsum_count <= 0;
+					opsum[PSUM_DATA_SIZE-1:0] <= opsum_reg[0];
+					opsum[2*PSUM_DATA_SIZE-1:PSUM_DATA_SIZE] <= opsum_reg[1];
+					opsum[3*PSUM_DATA_SIZE-1:2*PSUM_DATA_SIZE] <= opsum_reg[2];
+					opsum[4*PSUM_DATA_SIZE-1:3*PSUM_DATA_SIZE] <= opsum_reg[3];
+		
 					//mac_count <= 4'd0;
 					// opsum[7:0] <= opsum_reg[0];
 					// opsum[15:8] <= opsum_reg[1];
@@ -490,7 +491,7 @@ always @(posedge clk or posedge rst) begin
 				
 			end
             SHIFT:begin //shift ifmap reg by sride and channel
-			
+
                 if(stride_count < config_U_reg)begin
 					if (channel_count < config_q_reg) begin
 						ifmap_reg [0] <= ifmap_reg[1];
@@ -546,63 +547,3 @@ end
 
 
 endmodule
-// 	if( == 3'd3)begin
-				// 		if (mac_count == 4'd10) begin
-				// 			psum <= filter_reg[mac_count] * ifmap_reg [mac_count] + psum;
-							
-				// 		end
-				// 		else begin
-				// 			psum <= filter_reg[mac_count] * ifmap_reg [mac_count] + psum;
-				// 			if (mac_count == 4'd2 ||mac_count == 4'd6) begin
-				// 				mac_count <= mac_count + 4'd2;
-				// 			end
-				// 			else begin
-				// 				mac_count <= mac_count + 4'd1;
-				// 			end
-				// 		end
-				// 	end
-				// 	else begin
-				// 		if (mac_count == 4'd11) begin
-				// 			psum <= filter_reg[mac_count] * ifmap_reg [mac_count] + psum;
-				// 			ofcol_count <= ofcol_count + 6'd1;
-				// 		end
-				// 		else begin
-				// 			psum <= filter_reg[mac_count] * ifmap_reg [mac_count] + psum;
-				// 			mac_count <= mac_count + 4'd1;
-				// 		end
-							
-				// 	end
-// if(ofcol_count == config_F_reg)begin	//done row of ofmap 
-				// 	if(ifmap_valid)begin
-				// 			ifmap_reg [0] <= ifmap[7:0];
-				// 			ifmap_reg [1] <= ifmap[15:8];
-				// 			ifmap_reg [2] <= ifmap[23:16];
-				// 			ifmap_reg [3] <= ifmap[31:24];
-				// 			ifmap_count <= ifmap_count + 4'd4;
-				// 			ofcol_count <= 6'd0;
-				// 	end
-				// 	if(filter_valid)begin
-				// 		filter_reg[filter_count] <= filter;
-				// 		filter_count <= filter_count + 4'd1;
-				// 	end
-				// end
-				// else begin
-				// 	if(ifmap_count == 4'd8) begin
-				// 		if(ifmap_valid)begin
-				// 			ifmap_reg [0] <= ifmap_reg[4];
-				// 			ifmap_reg [1] <= ifmap_reg[5];
-				// 			ifmap_reg [2] <= ifmap_reg[6];
-				// 			ifmap_reg [3] <= ifmap_reg[7];
-				// 			ifmap_reg [4] <= ifmap_reg[8];
-				// 			ifmap_reg [5] <= ifmap_reg[9];
-				// 			ifmap_reg [6] <= ifmap_reg[10];
-				// 			ifmap_reg [7] <= ifmap_reg[11];
-				// 			ifmap_reg [8] <= ifmap[7:0];
-				// 			ifmap_reg [9] <= ifmap[15:8];
-				// 			ifmap_reg [10] <= ifmap[23:16];
-				// 			ifmap_reg [11] <= ifmap[31:24];
-				// 			ifmap_count <= ifmap_count + 4'd4;
-							
-				// 		end
-				// 	end
-				// end

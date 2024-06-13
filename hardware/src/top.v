@@ -19,8 +19,8 @@ module top #(
                 FILTER_DATA_SIZE = 16,
                 PSUM_DATA_SIZE = 32,
                 FIXPOINT_LEN = 8,
-                IFMAP_NUM = 1,
-                FILTER_NUM = 4,
+                IFMAP_NUM = 4,
+                FILTER_NUM = 1,
                 IPSUM_NUM = 4,
                 OPSUM_NUM = 4,
                 ID_LEN = 5,
@@ -72,14 +72,14 @@ wire set_pe_info;
 wire set_ln_info;
 wire set_id;
 wire set_row;
-wire[IFMAP_GIN_ROW_LEN-1:0]   ifmap_row_id; // IFMAP X-Bus
-wire[IFMAP_GIN_ID_LEN-1:0]    ifmap_col_id; // IFMAP Y-Bus PE id
-wire[FILTER_GIN_ROW_LEN-1:0]  filter_row_id; // FILTER X-Bus
-wire[FILTER_GIN_ID_LEN-1:0]   filter_col_id; // FILTER Y-Bus PE id
-wire[IPSUM_GIN_ROW_LEN-1:0]   ipsum_row_id; // IPSUM X-Bus
-wire[IPSUM_GIN_ID_LEN-1:0]    ipsum_col_id; // IPSUM Y-Bus PE id
-wire[OPSUM_GON_ROW_LEN-1:0]   opsum_row_id; // OPSUM X-Bus
-wire[OPSUM_GON_ID_LEN-1:0]    opsum_col_id; // OPSUM Y-Bus PE id
+wire [IFMAP_GIN_ROW_LEN-1:0]   ifmap_row_id; // IFMAP X-Bus
+wire [IFMAP_GIN_ID_LEN-1:0]    ifmap_col_id; // IFMAP Y-Bus PE id
+wire [FILTER_GIN_ROW_LEN-1:0]  filter_row_id; // FILTER X-Bus
+wire [FILTER_GIN_ID_LEN-1:0]   filter_col_id; // FILTER Y-Bus PE id
+wire [IPSUM_GIN_ROW_LEN-1:0]   ipsum_row_id; // IPSUM X-Bus
+wire [IPSUM_GIN_ID_LEN-1:0]    ipsum_col_id; // IPSUM Y-Bus PE id
+wire [OPSUM_GON_ROW_LEN-1:0]   opsum_row_id; // OPSUM X-Bus
+wire [OPSUM_GON_ID_LEN-1:0]    opsum_col_id; // OPSUM Y-Bus PE id
 wire ifmap_enable, ifmap_ready;
 wire filter_enable, filter_ready;
 wire ipsum_enable, ipsum_ready;
@@ -97,7 +97,6 @@ wire [3:0] ctrl_ram_we;
 
 wire [ID_LEN-1:0] id_scan_in;
 wire [ROW_LEN-1:0] row_scan_in;
-wire [`CONFIG_BIT:0] pe_config_in;
 wire [XBUS_NUMS-1:0] LN_config_in;
 
 
@@ -107,6 +106,21 @@ reg [DATA_BITWIDTH-1:0] write_buffer;
 reg [IFMAP_DATA_SIZE*IFMAP_NUM-1:0] ifmap_value;
 reg [FILTER_DATA_SIZE*FILTER_NUM-1:0] filter_value;
 reg [PSUM_DATA_SIZE*FILTER_NUM-1:0] ipsum_value;
+
+reg [CONFIG_BITWIDTH-1:0] pe_config_reg [2:0];
+
+wire [2:0]  config_q = pe_config_reg[2][2:0];
+wire [4:0]  config_p = pe_config_reg[2][7:3];
+wire [4:0]  config_U = pe_config_reg[0][31:28];
+wire [4:0]  config_S = pe_config_reg[1][31:28];
+wire [7:0]  config_F = pe_config_reg[1][7:0];
+wire [7:0]  config_W = pe_config_reg[0][7:0];
+wire [7:0]  config_H = pe_config_reg[0][15:8];
+wire [7:0]  config_E = pe_config_reg[1][15:8];
+wire [11:0]  config_C = pe_config_reg[0][27:16];
+wire [11:0]  config_M = pe_config_reg[1][27:16];
+wire [4:0]  config_t = pe_config_reg[2][11:8];
+wire [4:0]  config_r = pe_config_reg[2][15:12];
 
 /* Read Wrtie Mux */
 
@@ -170,6 +184,19 @@ controller #(
     .write_address(ctrl_write_address),
     .ram_enable(ctrl_ram_enable),
     .ram_we(ctrl_ram_we),
+
+    .config_q(config_q),
+    .config_p(config_p),
+    .config_U(config_U),
+    .config_S(config_S),
+    .config_F(config_F),
+    .config_W(config_W),
+    .config_H(config_H),
+    .config_E(config_E),
+    .config_C(config_C),
+    .config_M(config_M),
+    .config_t(config_t),
+    .config_r(config_r)
 );
 
 PEArray #(
@@ -215,7 +242,7 @@ PEArray #(
     .ifmap_ready(ifmap_ready),
     .ifmap_row_tag(ifmap_row_id),
     .ifmap_col_tag(ifmap_col_id),
-    .ifmap_value(read_buffer),
+    .ifmap_value(ifmap_value),
     /* Data Flow in - filter */
     .filter_enable(filter_enable),
     .filter_ready(filter_ready),
@@ -237,14 +264,17 @@ PEArray #(
 
     /* PE config */
     .enable(enable_pe_array),
-    .set_info(set_pe_info),
-    .config_q(),
-    .config_p(),
-    .config_U(),
-    .config_S(),
-    .config_F(),
-    .config_W(),
+    .set_pe_info(set_pe_info),
+    .config_q(config_q),
+    .config_p(config_p),
+    .config_U(config_U),
+    .config_S(config_S),
+    .config_F(config_F),
+    .config_W(config_W)
 );
+
+
+
 
 
 /* Pooling */
