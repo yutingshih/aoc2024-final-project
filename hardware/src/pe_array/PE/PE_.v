@@ -57,14 +57,7 @@ module PE#(
 
 
 reg [2:0] current_state, next_state;
-parameter 	IDLE = 3'd0,
-			SET = 3'd1, 
-			READ_AND_COMPUTE = 3'd2, 
-			IPSUM = 3'd3, 
-			OUTPUT = 3'd4, 
-			SHIFT = 3'd5, 
-			DONE = 3'd6;
-
+parameter IDLE = 3'd0,SET = 3'd1, READ_AND_COMPUTE = 3'd2, IPSUM = 3'd3, OUTPUT = 3'd4, SHIFT = 3'd5, DONE = 3'd6;
 reg [2:0] channel_count, ipsum_count;
 reg [3:0] ifmap_count, mac_count, filter_col_count, stride_count;
 reg [8:0] filter_count, mac_filter_count;
@@ -91,31 +84,44 @@ integer i;
 wire ipsum_valid = (ipsum_ready && ipsum_enable);
 wire ifmap_valid = (ifmap_ready && ifmap_enable);
 wire filter_valid = (filter_enable && filter_ready);
-
 wire [3:0] data_count = (mac_count < 12) ?11 - mac_count :0;
 wire [FILTER_DATA_SIZE-1:0] cur_filter;
 wire [IFMAP_DATA_SIZE-1:0] cur_ifmap;
+// wire [11:0]shift_data = {data_valid[10:0], 1'b0};
 
 
 wire [PSUM_DATA_SIZE-1:0] mul;
 wire [PSUM_DATA_SIZE-1:0] sum;
-wire [PSUM_DATA_SIZE-1:0] operands;
 reg [PSUM_DATA_SIZE-1:0] opsum_reg[3:0];
+//assign mul = (current_state == IPSUM) ?ipsum_reg[ipsum_count] :((current_state == READ_AND_COMPUTE)?({{16{cur_ifmap[7]}},cur_ifmap} * {{16{cur_filter[7]}},cur_filter}) :mul);
+assign mul = (current_state == IPSUM) ?ipsum_reg[ipsum_count-1] :mul;
+assign sum = psum[kernel_count] + mul;
 
-/* MAC with overflow detact */
-assign cur_ifmap = ifmap_reg[mac_count];
-assign cur_filter = filter_reg[mac_filter_count];
-assign mul = ({{16{cur_ifmap[7]}},cur_ifmap} * {{16{cur_filter[7]}},cur_filter});
-assign operands = (current_state == IPSUM) ? ipsum_reg[ipsum_count] : mul;
-assign sum = operands + mul;
-wire overflow = ((mul[PSUM_DATA_SIZE-1] == operands[PSUM_DATA_SIZE-1]) && (mul[PSUM_DATA_SIZE-1] != sum[PSUM_DATA_SIZE-1]));
+
+wire overflow = ((mul[PSUM_DATA_SIZE-1] == psum[kernel_count][PSUM_DATA_SIZE-1]) && (mul[PSUM_DATA_SIZE-1] != sum[PSUM_DATA_SIZE-1]));
+//assign opsum_reg[ipsum_count] = (overflow == 1'd1) ?((psum[kernel_count][PSUM_DATA_SIZE-1] == 1'd1) ?(32'h80000000) :(32'h7fffffff)) :sum;
+
+
 
 assign filter_ready = ((current_state == READ_AND_COMPUTE) && (filter_count < FILTER_SPAD_SIZE)) ?1'd1 :1'd0;
+//assign ifmap_ready = ((current_state == READ_AND_COMPUTE) && (ifmap_count < IFMAP_SPAD_SIZE))?1'd1 :1'd0;
 assign ifmap_ready = ((current_state == READ_AND_COMPUTE) && (data_valid[3:0] == 4'd0))?1'd1 :1'd0;
 assign ipsum_ready = ((current_state == IPSUM) && (ipsum_count == 0)) ?1'b1 :1'b0;
 assign opsum_enable = (current_state == OUTPUT) ?1'b1 :1'b0;
 
+assign cur_filter = filter_reg[mac_filter_count];
+assign cur_ifmap = ifmap_reg[mac_count];
 wire done = ((ofcol_count == config_F_reg) && (current_state == SHIFT));
+
+
+// always @(*) begin
+// 	if(current_state == IPSUM)begin
+// 		opsum_reg[ipsum_count] = (overflow == 1'd1) ?((psum[kernel_count][PSUM_DATA_SIZE-1] == 1'd1) ?(32'h80000000) :(32'h7fffffff)) :sum;
+// 	end
+	
+// end
+
+
 
 always @(posedge clk or posedge rst) begin
     if(rst)begin
@@ -339,7 +345,7 @@ always @(posedge clk or posedge rst) begin
 					if (filter_col_count < (config_S_reg - 1)) begin
 						if(channel_count < (config_q_reg - 1))begin
 							if((mac_filter_count < filter_count) && (mac_count < ifmap_count) && data_valid[data_count])begin	//data already prepared to READ_AND_COMPUTE
-								psum[kernel_count] <= sum + psum[kernel_count];
+								psum[kernel_count] <= filter_reg[mac_filter_count] * ifmap_reg [mac_count] + psum[kernel_count];
 								mac_count <= mac_count + 4'd1;
 								mac_filter_count <= mac_filter_count + 1;
 								channel_count <= channel_count + 1;
@@ -347,7 +353,7 @@ always @(posedge clk or posedge rst) begin
 						end
 						else begin
 							if((mac_filter_count < filter_count) && (mac_count < ifmap_count) && data_valid[data_count])begin
-								psum[kernel_count] <= sum + psum[kernel_count];
+								psum[kernel_count] <= filter_reg[mac_filter_count] * ifmap_reg [mac_count] + psum[kernel_count];
 								mac_filter_count <= mac_filter_count + 1;	
 								mac_count <= mac_count + 4'd1;
 								channel_count <= 0;
@@ -358,7 +364,7 @@ always @(posedge clk or posedge rst) begin
 					else begin	//mac done
 						if(channel_count < (config_q_reg - 1))begin
 							if((mac_filter_count < filter_count) && (mac_count < ifmap_count) && data_valid[data_count])begin	//data already prepared to READ_AND_COMPUTE
-								psum[kernel_count] <= sum + psum[kernel_count];
+								psum[kernel_count] <= filter_reg[mac_filter_count] * ifmap_reg [mac_count] + psum[kernel_count];
 								mac_count <= mac_count + 4'd1;
 								mac_filter_count <= mac_filter_count + 1;
 								channel_count <= channel_count + 1;
@@ -366,7 +372,7 @@ always @(posedge clk or posedge rst) begin
 						end
 						else begin
 							if((mac_filter_count < filter_count) && (mac_count < ifmap_count) && data_valid[data_count])begin
-								psum[kernel_count] <= sum + psum[kernel_count];
+								psum[kernel_count] <= filter_reg[mac_filter_count] * ifmap_reg [mac_count] + psum[kernel_count];
 								filter_col_count <= 0;
 								channel_count <= 0;
 								mac_count <= 0;
@@ -383,7 +389,7 @@ always @(posedge clk or posedge rst) begin
 					if (filter_col_count < (config_S_reg - 1)) begin
 						if(channel_count < (config_q_reg - 1))begin
 							if((mac_filter_count < filter_count) && (mac_count < ifmap_count) && data_valid[data_count])begin	//data already prepared to READ_AND_COMPUTE
-								psum[kernel_count] <= sum + psum[kernel_count];
+								psum[kernel_count] <= filter_reg[mac_filter_count] * ifmap_reg [mac_count] + psum[kernel_count];
 								mac_count <= mac_count + 4'd1;
 								mac_filter_count <= mac_filter_count + 1;
 								channel_count <= channel_count + 1;
@@ -391,7 +397,7 @@ always @(posedge clk or posedge rst) begin
 						end
 						else begin
 							if((mac_filter_count < filter_count) && (mac_count < ifmap_count) && data_valid[data_count])begin
-								psum[kernel_count] <= sum + psum[kernel_count];
+								psum[kernel_count] <= filter_reg[mac_filter_count] * ifmap_reg [mac_count] + psum[kernel_count];
 								mac_filter_count <= mac_filter_count + 1;	
 								mac_count <= mac_count + 4'd1;
 								channel_count <= 0;
@@ -402,7 +408,7 @@ always @(posedge clk or posedge rst) begin
 					else begin	//mac done
 						if(channel_count < config_q_reg)begin
 							if((mac_filter_count < filter_count) && (mac_count < ifmap_count) && data_valid[data_count])begin	//data already prepared to READ_AND_COMPUTE
-								psum[kernel_count] <= sum + psum[kernel_count];
+								psum[kernel_count] <= filter_reg[mac_filter_count] * ifmap_reg [mac_count] + psum[kernel_count];
 								mac_count <= mac_count + 4'd1;
 								mac_filter_count <= mac_filter_count + 1;
 								channel_count <= channel_count + 1;
@@ -410,7 +416,7 @@ always @(posedge clk or posedge rst) begin
 						end
 						else begin
 							// if((mac_filter_count < filter_count) && (mac_count < ifmap_count) && data_valid[data_count])begin
-							// 	psum[kernel_count] <= sum + psum[kernel_count];
+							// 	psum[kernel_count] <= filter_reg[mac_filter_count] * ifmap_reg [mac_count] + psum[kernel_count];
 							// end
 							mac_count <= 0;
 							filter_col_count <= 0;

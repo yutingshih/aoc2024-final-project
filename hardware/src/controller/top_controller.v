@@ -125,9 +125,9 @@ module controller #(
     output reg ram_enable,
     output reg [3:0] ram_we,
 
-    output reg [1:0] ifmap_buffer_select,
-    output reg [1:0] ipsum_buffer_select,
-    output reg [1:0] opsum_buffer_select,
+    output reg [3:0] ifmap_buffer_select, // one-hot encode
+    output reg [3:0] ipsum_buffer_select, // one-hot encode
+    output reg [1:0] opsum_buffer_select, // index
     output wire padding
 );
 
@@ -271,7 +271,7 @@ always @(posedge clk ) begin
         Ecounter <= 0;
         Hcounter <= 0;
         Ccounter <= 0;
-        computation_config_reg;
+        Ucounter <= 0;
     end else begin
         state <= state_next;
         counter <= counter_next;
@@ -292,21 +292,19 @@ end
 /* config data and starting address info */
 always @(posedge clk ) begin
     if(~rst) begin
-        address_ifmap_reg <= 'd0;
-        address_filter_reg <= 'd0;
-        address_ipsum_reg <= 'd0;
-        address_opsum_reg <= 'd0;
-        address_scan_chain_reg <= 'd0;
-        convolution_param1_reg <= 'd0;
-        convolution_param2_reg <= 'd0;
+        address_ifmap_reg <= 0;
+        address_filter_reg <= 0;
+        address_ipsum_reg <= 0;
+        address_opsum_reg <= 0;
+        address_scan_chain_reg <= 0;
+        computation_config_reg <= 0;
     end else if(state == SIDLE && start)begin
         address_ifmap_reg <= address_ifmap;
         address_filter_reg <= address_filter;
         address_ipsum_reg <= address_ipsum;
         address_opsum_reg <= address_opsum;
         address_scan_chain_reg <= address_scan_chain;
-        convolution_param1_reg <= convolution_param1;
-        convolution_param2_reg <= convolution_param2;
+        computation_config_reg <= computation_config;
     end
 end
 
@@ -326,6 +324,7 @@ always @(*) begin
     Hcounter_next = Hcounter;
     Ccounter_next = Ccounter;
     Ucounter_next = Ucounter;
+    IDcounter_next = IDcounter;
     set_pe_info = 0;
     set_ln_info = 0;
     set_id = 0;
@@ -354,6 +353,9 @@ always @(*) begin
     ipsum_col_id = 0;
     opsum_row_id = 0;
     opsum_col_id = 0;
+    ifmap_buffer_select = 0;
+    ipsum_buffer_select = 0;
+    opsum_buffer_select = 0;
     case (state)
         SIDLE:begin
             if(start) begin
@@ -427,7 +429,7 @@ always @(*) begin
             state_next = SSET_PE_INFO;
         end
         SREADY: begin
-            state_next = SREAD_FILTER
+            state_next = SREAD_FILTER;
             counter_next = 0; 
         end
         SREAD_FILTER: begin  // TBD
@@ -493,10 +495,15 @@ always @(*) begin
         SGATHER_IFMAP: begin
             read_from_select = READ_FROM_IARG_BUFFER;
             read_to_select = READ_TO_IFMAPGIN;
-            ifmap_buffer_select = Qcounter;
+            ifmap_buffer_select = (Qcounter == 0)? 4'b0001:
+                        (Qcounter == 1)? 4'b0010:
+                        (Qcounter == 2)? 4'b0100:4'b1000;
             if(Qcounter+1 == config_q)begin
                 Qcounter_next = 0;
                 state_next = SPUT_IFMAP;
+            end else begin
+                Qcounter_next = Qcounter + 1;
+                state_next = SREAD_IFMAP;
             end
         end
         SPUT_IFMAP: begin
@@ -504,6 +511,7 @@ always @(*) begin
             ifmap_row_id = Ccounter;
             ifmap_enable = 1;
             if(ifmap_ready)begin
+                state_next = SREAD_IFMAP;
                 if(Ecounter + 1 == config_E)begin
                     Ecounter_next = 0;
                     if(Ccounter + config_q == config_C)begin  //TBD
@@ -511,6 +519,7 @@ always @(*) begin
                         if(Ucounter + 1 == config_U)begin  //TBD
                             Ucounter_next = 0;
                             state_next = SREAD_IPSUM;
+                            Qcounter_next = 0;
                             Wcounter_next = Wcounter + 1;
                         end else begin
                             Ucounter_next = Ucounter + 1;
@@ -532,26 +541,90 @@ always @(*) begin
             state_next = SGATHER_IPSUM;
         end
         SGATHER_IPSUM: begin
-            ;
+            read_to_select = READ_TO_IPSUMGIN
+            ipsum_buffer_select = (Pcounter[1:0] == 0)? 4'b0001:
+                        (Pcounter[1:0] == 1)? 4'b0010:
+                        (Pcounter[1:0] == 2)? 4'b0100:4'b1000;
+            if(Pcounter[1:0] == 2'b11)begin
+                state_next = SPUT_IPSUM;
+            end else begin
+                Pcounter_next = Pcounter + 1;
+                state_next = SREAD_IPSUM;
+            end
         end
         SPUT_IPSUM: begin
             ipsum_col_id = Ecounter;
             ipsum_row_id = Mcounter;
+            ipsum_enable = 1;
             if(ipsum_ready)begin
                 state_next = SREAD_IPSUM;
+                if(Pcounter + 1 == config_p)begin
+                    Pcounter_next = 0;
+                    if(Ecounter + 1 == config_E)begin
+                        Ecounter_next = 0;
+                        if(Mcounter + config_p == config_M)begin
+                            Mcounter_next = 0;
+                            state_next = SGET_OPSUM;
+                        end else begin
+                            Mcounter_next = Mcounter + config_p;
+                        end
+                    end else begin
+                        Ecounter_next = Ecounter + 1;
+                    end
+                end else begin
+                    Pcounter_next = Pcounter + 1;
+                end
             end
         end
         SGET_OPSUM: begin
-            ;
+            opsum_col_id = Ecounter;
+            opsum_row_id = Mcounter;
+            opsum_ready = 1;
+            if(opsum_enable)begin
+                state_next = SWRITE_OPSUM;
+            end
         end
         SWRITE_OPSUM: begin
-            ;
+            write_address = address_opsum_reg+(
+                (Mcounter+Pcounter)*config_E*config_F + (Ecounter) * config_F + Fcounter
+                )*(IFMAP_DATA_SIZE/`BYTE);
+            ram_enable = 1;
+            ram_we = 4'b1111;
+            opsum_buffer_select = Pcounter[1:0];
+            if(Pcounter[1:0] == 2'b11)begin
+                state_next = SGET_OPSUM;
+                if(Pcounter + 1 == config_p)begin
+                    Pcounter_next = 0;
+                    if(Ecounter + 1 == config_E)begin
+                        Ecounter_next = 0;
+                        if(Mcounter + config_p == config_M)begin
+                            Mcounter_next = 0;
+                            if(Fcounter + 1 == config_F) begin
+                                Fcounter_next = 0;
+                                state_next = SDONE;
+                            end else begin
+                                Fcounter_next = Fcounter + 1;
+                                state_next = SREAD_IFMAP;
+                            end
+                        end else begin
+                            Mcounter_next = Mcounter + config_p;
+                        end
+                    end else begin
+                        Ecounter_next = Ecounter + 1;
+                    end
+                end else begin
+                    Pcounter_next = Pcounter + 1;
+                end
+            end else begin
+                Pcounter_next = Pcounter + 1;
+                state_next = SWRITE_OPSUM;
+            end
         end
         SPUT_POOLING: begin
-            ;
+            state_next = SIDLE;
         end
         SGET_POOLING: begin
-            ;
+            state_next = SIDLE;
         end
         SDONE: begin
             finish = 1;
