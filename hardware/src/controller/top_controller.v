@@ -60,7 +60,7 @@ module controller #(
    
 
     /* scan chain information */
-    output reg [1:0] pe_config_id;
+    output reg [1:0] pe_config_id,
     output reg set_pe_info,
     output reg set_ln_info,
     output reg set_id,
@@ -218,7 +218,7 @@ parameter   SIDLE = 0,
             SPREREAD = 2,
             SSET_PECONFIG = 3,
             SSET_ID = 4,
-            SSET_RAW = 5,
+            SSET_ROW = 5,
             SSET_LN_INFO = 6,
             SSET_PE_INFO = 7,
             SREADY = 9,
@@ -324,7 +324,6 @@ always @(*) begin
     Hcounter_next = Hcounter;
     Ccounter_next = Ccounter;
     Ucounter_next = Ucounter;
-    IDcounter_next = IDcounter;
     set_pe_info = 0;
     set_ln_info = 0;
     set_id = 0;
@@ -341,10 +340,6 @@ always @(*) begin
     filter_enable = 0;
     ipsum_enable = 0;
     opsum_ready = 0;
-    ifmap_ready = 0;
-    filter_ready = 0;
-    ipsum_ready = 0;
-    opsum_enable = 0;
     ifmap_row_id = 0;
     ifmap_col_id = 0;
     filter_row_id = 0;
@@ -365,7 +360,7 @@ always @(*) begin
         end
         SCONFIG: begin // determine if need to config info and scan chain
             if(use_scan_chain) begin
-                state_next = SREAD_SCAN;
+                state_next = SPREREAD;
                 counter_next = 'd0; // ready to read scan chain
             end else begin
                 state_next = SREADY;
@@ -376,18 +371,21 @@ always @(*) begin
             state_next =  SSET_PECONFIG;
             counter_next = counter + 'd1;
             read_from_select = READ_FROM_IARG_BUFFER;
-            read_address = scan_chain_start_addr+counter;
+            read_address = address_scan_chain_reg+counter;
             ram_enable = 1;
         end
         SSET_PECONFIG: begin
-            counter_next = counter + 'd1;
             read_from_select = READ_FROM_IARG_BUFFER;
-            read_address = scan_chain_start_addr+counter;
+            read_address = address_scan_chain_reg+counter;
             ram_enable = 1;
             read_to_select = READ_TO_PE_CONFIG;
             pe_config_id = counter[1:0] - 1;
             if(counter == 4)begin
                 set_pe_info = 1; 
+                counter_next = SSET_ID;
+                state_next = 1; 
+            end else begin
+                counter_next = counter;
             end
         end
         SSET_ID: begin // read from BRAM address & write to id scan chain
@@ -396,7 +394,7 @@ always @(*) begin
                 state_next = SSET_ROW;
             end
             read_from_select = READ_FROM_IARG_BUFFER;
-            read_address = scan_chain_start_addr+counter;
+            read_address = address_scan_chain_reg+counter;
             ram_enable = 1;
             set_id = 1;
             read_to_select = READ_TO_SCAN_ID;
@@ -408,7 +406,7 @@ always @(*) begin
                 counter_next = counter + 'd4;
             end
             read_from_select = READ_FROM_IARG_BUFFER;
-            read_address = scan_chain_start_addr+counter;
+            read_address = address_scan_chain_reg+counter;
             ram_enable = 1;
             set_row = 1;
             read_to_select = READ_TO_SCAN_ROW;
@@ -419,7 +417,7 @@ always @(*) begin
             set_ln_info = 1;
             read_to_select = READ_TO_SCAN_LN;
             read_from_select = READ_FROM_IARG_BUFFER;
-            read_address = scan_chain_start_addr+counter;
+            read_address = address_scan_chain_reg+counter;
             ram_enable = 1;
         end
         SSET_PE_INFO: begin // just one cycle
@@ -544,7 +542,7 @@ always @(*) begin
         end
         SGATHER_IPSUM: begin
             ram_enable = 1;
-            read_to_select = READ_TO_IPSUMGIN
+            read_to_select = READ_TO_IPSUMGIN;
             ipsum_buffer_select = (Pcounter[1:0] == 0)? 4'b0001:
                         (Pcounter[1:0] == 1)? 4'b0010:
                         (Pcounter[1:0] == 2)? 4'b0100:4'b1000;

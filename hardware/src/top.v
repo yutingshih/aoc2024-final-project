@@ -2,8 +2,8 @@
 `include "./src/pe_array/MappingConfig.v"
 module top #(
     parameter   SCALAR_LEN = 32,
-                ADDRESS_BITWIDTH = 32;
-                DATA_BITWIDTH = 32;
+                ADDRESS_BITWIDTH = 32,
+                DATA_BITWIDTH = 32,
                 XBUS_NUMS = 12,
                 PE_NUMS = 14,
                 IFMAP_GIN_ROW_LEN = 4,
@@ -57,14 +57,14 @@ module top #(
     output reg [ADDRESS_BITWIDTH-1:0] IARG_address,
     output reg[DATA_BITWIDTH-1:0] IARG_wdata,
     input [DATA_BITWIDTH-1:0] IARG_rdata,
-    output reg IARG_e;
-    output reg [3:0] IARG_we;
+    output reg IARG_e,
+    output reg [3:0] IARG_we,
 
     output reg [ADDRESS_BITWIDTH-1:0] OARG_address,
     output reg [DATA_BITWIDTH-1:0] OARG_wdata,
     input [DATA_BITWIDTH-1:0] OARG_rdata,
-    output reg OARG_e;
-    output reg [3:0] OARG_we;
+    output reg OARG_e,
+    output reg [3:0] OARG_we
 );
 
 wire enable_pe_array;
@@ -148,7 +148,7 @@ reg [PSUM_DATA_SIZE-1:0] ipsum_value_reg [IPSUM_NUM-1:0];
 reg [PSUM_DATA_SIZE-1:0] opsum_value_reg [OPSUM_NUM-1:0];
 
 wire [IFMAP_DATA_SIZE*IFMAP_NUM-1:0] ifmap_value = {ifmap_value_reg[0],ifmap_value_reg[1],ifmap_value_reg[2],ifmap_value_reg[3]};
-wire [FILTER_DATA_SIZE*FILTER_NUM-1:0] filter_value = filter_value_reg;
+wire [FILTER_DATA_SIZE*FILTER_NUM-1:0] filter_value = filter_value_reg[0];
 wire [PSUM_DATA_SIZE*IPSUM_NUM-1:0] ipsum_value = {ipsum_value_reg[0],ipsum_value_reg[1],ipsum_value_reg[2],ipsum_value_reg[3]};
 wire [PSUM_DATA_SIZE*IPSUM_NUM-1:0] opsum_value;
 
@@ -170,7 +170,7 @@ end
 
 always @(posedge clk) begin
     if(~rst) begin
-        filter_value_reg = 0;
+        filter_value_reg[0] <= 0;
         ifmap_value_reg[0] <= 0;
         ifmap_value_reg[1] <= 0;
         ifmap_value_reg[2] <= 0;
@@ -187,7 +187,7 @@ always @(posedge clk) begin
             pe_config_reg[ctrl_pe_config_id] <= read_wire;
         end
         if(ctrl_read_to_select == READ_TO_FILTERGIN) begin
-            filter_value_reg <= read_wire;
+            filter_value_reg[0] <= read_wire;
         end
         if(ctrl_read_to_select == READ_TO_IFMAPGIN) begin
             ifmap_value_reg[0] <= (ctrl_ifmap_buffer_select[0])?read_wire[IFMAP_DATA_SIZE-1:0]:ifmap_value_reg[0];
@@ -222,7 +222,7 @@ controller #(
     .OPSUM_GON_ROW_LEN(OPSUM_GON_ROW_LEN),
     .OPSUM_GON_ID_LEN(OPSUM_GON_ID_LEN),
     .CONFIG_BITWIDTH(CONFIG_BITWIDTH),
-    .ADDRESS_BITWIDTH(ADDRESS_BITWIDTH),
+    .ADDRESS_BITWIDTH(ADDRESS_BITWIDTH)
 )controller_0(
     .rst(rst),
     .clk(clk),
@@ -301,7 +301,6 @@ PEArray #(
     .OPSUM_NUM(OPSUM_NUM),
     .ID_LEN(ID_LEN),
     .ROW_LEN(ROW_LEN),
-    ./* PE param */
     .IFMAP_SPAD_SIZE(IFMAP_SPAD_SIZE),
     .FILTER_SPAD_SIZE(FILTER_SPAD_SIZE),
     .PSUM_SPAD_SIZE(PSUM_SPAD_SIZE),
@@ -310,7 +309,7 @@ PEArray #(
     .CONFIG_U_BIT(CONFIG_U_BIT), // stride config
     .CONFIG_S_BIT(CONFIG_S_BIT), // filter width config
     .CONFIG_F_BIT(CONFIG_F_BIT), // ifmap width config
-    .CONFIG_W_BIT(CONFIG_W_BIT), // ofmap width config
+    .CONFIG_W_BIT(CONFIG_W_BIT) // ofmap width config
 )PEArray_0(
     .rst(rst),
     .clk(clk),
