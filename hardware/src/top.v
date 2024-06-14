@@ -54,17 +54,17 @@ module top #(
 
 
     /* BRAM IO */
-    output [ADDRESS_BITWIDTH-1:0] IARG_address,
-    output [DATA_BITWIDTH-1:0] IARG_wdata,
+    output reg [ADDRESS_BITWIDTH-1:0] IARG_address,
+    output reg[DATA_BITWIDTH-1:0] IARG_wdata,
     input [DATA_BITWIDTH-1:0] IARG_rdata,
-    output IARG_e;
-    output [3:0] IARG_we;
+    output reg IARG_e;
+    output reg [3:0] IARG_we;
 
-    output [ADDRESS_BITWIDTH-1:0] OARG_address,
-    output [DATA_BITWIDTH-1:0] OARG_wdata,
+    output reg [ADDRESS_BITWIDTH-1:0] OARG_address,
+    output reg [DATA_BITWIDTH-1:0] OARG_wdata,
     input [DATA_BITWIDTH-1:0] OARG_rdata,
-    output OARG_e;
-    output [3:0] OARG_we;
+    output reg OARG_e;
+    output reg [3:0] OARG_we;
 );
 
 wire enable_pe_array;
@@ -86,26 +86,20 @@ wire ipsum_enable, ipsum_ready;
 wire opsum_ready, opsum_enable;
 
 
+reg [DATA_BITWIDTH-1:0] read_wire, write_wrie;
+
 wire [2:0] ctrl_read_to_select;
 wire ctrl_read_from_select;
-wire [ADDRESS_BITWIDTH-1:] ctrl_read_address;
+wire [ADDRESS_BITWIDTH-1:0] ctrl_read_address;
 wire [1:0] ctrl_write_from_select; 
 wire ctrl_write_to_select;
-wire [ADDRESS_BITWIDTH-1:] ctrl_write_address;
+wire [ADDRESS_BITWIDTH-1:0] ctrl_write_address;
 wire ctrl_ram_enable;
 wire [3:0] ctrl_ram_we;
 
 wire [ID_LEN-1:0] id_scan_in;
 wire [ROW_LEN-1:0] row_scan_in;
 wire [XBUS_NUMS-1:0] LN_config_in;
-
-
-reg [DATA_BITWIDTH-1:0] read_buffer;
-reg [DATA_BITWIDTH-1:0] write_buffer;
-
-reg [IFMAP_DATA_SIZE*IFMAP_NUM-1:0] ifmap_value;
-reg [FILTER_DATA_SIZE*FILTER_NUM-1:0] filter_value;
-reg [PSUM_DATA_SIZE*FILTER_NUM-1:0] ipsum_value;
 
 reg [CONFIG_BITWIDTH-1:0] pe_config_reg [2:0];
 
@@ -123,7 +117,98 @@ wire [4:0]  config_t = pe_config_reg[2][11:8];
 wire [4:0]  config_r = pe_config_reg[2][15:12];
 
 /* Read Wrtie Mux */
+parameter   READ_TO_PE_CONFIG = 0,
+            READ_TO_SCAN_ID = 1,
+            READ_TO_SCAN_ROW = 2,
+            READ_TO_SCAN_LN = 3,
+            READ_TO_IFMAPGIN = 4,
+            READ_TO_FILTERGIN = 5,
+            READ_TO_IPSUMGIN = 6,
+            READ_TO_POOLING = 7;
 
+parameter   READ_FROM_IARG_BUFFER = 0,
+            READ_FROM_OARG_BUFFER = 1;
+
+parameter   WRITE_FROM_OPSUMGON = 0,
+            WRITE_FROM_RELU = 1,
+            WRITE_FROM_POOLING = 2;
+
+parameter   WRITE_TO_OARG_BUFFER = 0,
+            WRITE_TO_IARG_BUFFER = 1;
+
+wire [3:0] ctrl_ifmap_buffer_select; // one-hot encode
+wire [3:0] ctrl_ipsum_buffer_select; // one-hot encode
+wire [1:0] ctrl_opsum_buffer_select; // index
+wire ctrl_padding;
+wire [1:0] ctrl_pe_config_id;
+
+reg [IFMAP_DATA_SIZE-1:0] ifmap_value_reg [IFMAP_NUM-1:0];
+reg [FILTER_DATA_SIZE-1:0] filter_value_reg [FILTER_NUM-1:0];
+reg [PSUM_DATA_SIZE-1:0] ipsum_value_reg [IPSUM_NUM-1:0];
+reg [PSUM_DATA_SIZE-1:0] opsum_value_reg [OPSUM_NUM-1:0];
+
+wire [IFMAP_DATA_SIZE*IFMAP_NUM-1:0] ifmap_value = {ifmap_value_reg[0],ifmap_value_reg[1],ifmap_value_reg[2],ifmap_value_reg[3]};
+wire [FILTER_DATA_SIZE*FILTER_NUM-1:0] filter_value = filter_value_reg;
+wire [PSUM_DATA_SIZE*IPSUM_NUM-1:0] ipsum_value = {ipsum_value_reg[0],ipsum_value_reg[1],ipsum_value_reg[2],ipsum_value_reg[3]};
+wire [PSUM_DATA_SIZE*IPSUM_NUM-1:0] opsum_value;
+
+
+
+always @(*) begin
+    IARG_address = (ctrl_read_from_select==READ_FROM_IARG_BUFFER)? ctrl_read_address:0;
+    IARG_wdata = 0;
+    IARG_e = (ctrl_read_from_select==READ_FROM_IARG_BUFFER)?1:0;
+    IARG_we = 0;
+
+    read_wire = (ctrl_padding)?0:IARG_address;
+
+    OARG_address = ctrl_write_address;
+    OARG_we = ctrl_ram_we;
+    OARG_e = (ctrl_write_to_select==WRITE_TO_OARG_BUFFER)?1:0;
+    OARG_wdata = opsum_value_reg[ctrl_opsum_buffer_select];
+end
+
+always @(posedge clk) begin
+    if(~rst) begin
+        filter_value_reg = 0;
+        ifmap_value_reg[0] <= 0;
+        ifmap_value_reg[1] <= 0;
+        ifmap_value_reg[2] <= 0;
+        ifmap_value_reg[3] <= 0;
+        ipsum_value_reg[0] <= 0;
+        ipsum_value_reg[1] <= 0;
+        ipsum_value_reg[2] <= 0;
+        ipsum_value_reg[3] <= 0;
+        pe_config_reg[0] <= 0;
+        pe_config_reg[1] <= 0;
+        pe_config_reg[2] <= 0;
+    end else begin
+        if(ctrl_read_to_select == READ_TO_PE_CONFIG) begin
+            pe_config_reg[ctrl_pe_config_id] <= read_wire;
+        end
+        if(ctrl_read_to_select == READ_TO_FILTERGIN) begin
+            filter_value_reg <= read_wire;
+        end
+        if(ctrl_read_to_select == READ_TO_IFMAPGIN) begin
+            ifmap_value_reg[0] <= (ctrl_ifmap_buffer_select[0])?read_wire[IFMAP_DATA_SIZE-1:0]:ifmap_value_reg[0];
+            ifmap_value_reg[1] <= (ctrl_ifmap_buffer_select[1])?read_wire[IFMAP_DATA_SIZE-1:0]:ifmap_value_reg[1];
+            ifmap_value_reg[2] <= (ctrl_ifmap_buffer_select[2])?read_wire[IFMAP_DATA_SIZE-1:0]:ifmap_value_reg[2];
+            ifmap_value_reg[3] <= (ctrl_ifmap_buffer_select[3])?read_wire[IFMAP_DATA_SIZE-1:0]:ifmap_value_reg[3];
+        end
+        if(ctrl_read_to_select == READ_TO_IPSUMGIN) begin
+            ipsum_value_reg[0] <= (ctrl_ipsum_buffer_select[0])?read_wire[IFMAP_DATA_SIZE-1:0]:ipsum_value_reg[0];
+            ipsum_value_reg[1] <= (ctrl_ipsum_buffer_select[1])?read_wire[IFMAP_DATA_SIZE-1:0]:ipsum_value_reg[1];
+            ipsum_value_reg[2] <= (ctrl_ipsum_buffer_select[2])?read_wire[IFMAP_DATA_SIZE-1:0]:ipsum_value_reg[2];
+            ipsum_value_reg[3] <= (ctrl_ipsum_buffer_select[3])?read_wire[IFMAP_DATA_SIZE-1:0]:ipsum_value_reg[3];
+        end
+        if(ctrl_write_from_select == WRITE_FROM_OPSUMGON) begin
+            opsum_value_reg[0] <= opsum_value[PSUM_DATA_SIZE-1:0];
+            opsum_value_reg[1] <= opsum_value[PSUM_DATA_SIZE*2-1:PSUM_DATA_SIZE];
+            opsum_value_reg[2] <= opsum_value[PSUM_DATA_SIZE*3-1:PSUM_DATA_SIZE*2];
+            opsum_value_reg[3] <= opsum_value[PSUM_DATA_SIZE*4-1:PSUM_DATA_SIZE*3];
+        end
+    end
+end
 
 controller #(
     .XBUS_NUMS(XBUS_NUMS),
@@ -147,14 +232,13 @@ controller #(
     .enable_pe_array(enable_pe_array),
     /* scalar configuration */
     .computation_config(scalar0_config),
-    .convolution_param1(scalar1_config),
-    .convolution_param2(scalar2_config),
-    .address_ifmap(scalar3_config),
-    .address_filter(scalar4_config),
-    .address_ipsum(scalar5_config),
-    .address_opsum(scalar6_config),
-    .address_scan_chain(scalar7_config),
+    .address_ifmap(scalar1_config),
+    .address_filter(scalar2_config),
+    .address_ipsum(scalar3_config),
+    .address_opsum(scalar4_config),
+    .address_scan_chain(scalar5_config),
     /* scan chain information */
+    .pe_config_id(ctrl_pe_config_id),
     .set_pe_info(set_pe_info),
     .set_ln_info(set_ln_info),
     .set_id(set_id),
@@ -184,6 +268,11 @@ controller #(
     .write_address(ctrl_write_address),
     .ram_enable(ctrl_ram_enable),
     .ram_we(ctrl_ram_we),
+
+    .ifmap_buffer_select(ctrl_ifmap_buffer_select), // one-hot encode
+    .ipsum_buffer_select(ctrl_ipsum_buffer_select), // one-hot encode
+    .opsum_buffer_select(ctrl_opsum_buffer_select), // index
+    .padding(ctrl_padding),
 
     .config_q(config_q),
     .config_p(config_p),
@@ -228,7 +317,7 @@ PEArray #(
     /* Scan Chain */
     .set_id(set_id),
     .id_scan_in(id_scan_in),
-    .id_scan_out()
+    .id_scan_out(),
     .set_row(set_row),
     .row_scan_in(row_scan_in),
     .row_scan_out(),
@@ -256,11 +345,11 @@ PEArray #(
     .ipsum_col_tag(ipsum_col_id),
     .ipsum_value(ipsum_value),
     /* Data Flow out - opsum */
-    .opsum_enable,
-    .opsum_ready,
-    .opsum_row_tag,
-    .opsum_col_tag,
-    .opsum_value,
+    .opsum_enable(opsum_enable),
+    .opsum_ready(opsum_ready),
+    .opsum_row_tag(opsum_row_id),
+    .opsum_col_tag(opsum_col_id),
+    .opsum_value(opsum_value),
 
     /* PE config */
     .enable(enable_pe_array),

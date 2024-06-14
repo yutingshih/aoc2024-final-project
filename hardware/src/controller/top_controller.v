@@ -105,7 +105,7 @@ module controller #(
     */
     output reg read_from_select,
 
-    output reg [ADDRESS_BITWIDTH-1:] read_address,
+    output reg [ADDRESS_BITWIDTH-1:0] read_address,
     /* 
         *** Write Data From Mux ***
         0: OPSUM GON
@@ -120,7 +120,7 @@ module controller #(
         1: Pooling Engine
     */
     output reg write_to_select,
-    output reg [ADDRESS_BITWIDTH-1:] write_address,
+    output reg [ADDRESS_BITWIDTH-1:0] write_address,
 
     output reg ram_enable,
     output reg [3:0] ram_we,
@@ -247,14 +247,14 @@ parameter   READ_TO_PE_CONFIG = 0,
             READ_TO_POOLING = 7;
 
 parameter   READ_FROM_IARG_BUFFER = 0,
-            READ_FROM_OARG_BUFFER = 0;
+            READ_FROM_OARG_BUFFER = 1;
 
 parameter   WRITE_FROM_OPSUMGON = 0,
             WRITE_FROM_RELU = 1,
             WRITE_FROM_POOLING = 2;
 
-parameter   WRITE_TO_OPSUMGON = 0,
-            WRITE_TO_OARG_BUFFER = 1;
+parameter   WRITE_TO_OARG_BUFFER = 0,
+            WRITE_TO_IARG_BUFFER = 1;
 
 /* State Machine */
 always @(posedge clk ) begin
@@ -441,6 +441,7 @@ always @(*) begin
             state_next = SPUT_FILTER;
         end
         SPUT_FILTER: begin
+            ram_enable = 1;
             read_from_select = READ_FROM_IARG_BUFFER;
             filter_enable = 1;
             read_to_select = READ_TO_FILTERGIN;
@@ -493,6 +494,7 @@ always @(*) begin
             state_next = SGATHER_IFMAP;
         end
         SGATHER_IFMAP: begin
+            ram_enable = 1;
             read_from_select = READ_FROM_IARG_BUFFER;
             read_to_select = READ_TO_IFMAPGIN;
             ifmap_buffer_select = (Qcounter == 0)? 4'b0001:
@@ -541,6 +543,7 @@ always @(*) begin
             state_next = SGATHER_IPSUM;
         end
         SGATHER_IPSUM: begin
+            ram_enable = 1;
             read_to_select = READ_TO_IPSUMGIN
             ipsum_buffer_select = (Pcounter[1:0] == 0)? 4'b0001:
                         (Pcounter[1:0] == 1)? 4'b0010:
