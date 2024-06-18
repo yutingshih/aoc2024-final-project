@@ -3,16 +3,14 @@
 
 ## 1. Environment
 
-    ```shell
+
     pip install neural-compressor
     pip install -r requirements.txt
-    ```
 
 ## 2. Prepare Model
 
-    ```shell
     python prepare_model.py --output_model='squeezenet1.0-12.onnx'
-    ```
+
 
 ## 3. Prepare Dataset
 
@@ -20,10 +18,9 @@
 
     Download label:
 
-    ```shell
     wget http://dl.caffe.berkeleyvision.org/caffe_ilsvrc12.tar.gz
     tar -xvzf caffe_ilsvrc12.tar.gz val.txt
-    ```
+
 
 ## 4. Run Quantization
 
@@ -49,13 +46,11 @@
             }
         }
     }
-
     ```
 
 
     main.py
     ```python=
-    ...
     from neural_compressor import quantization, PostTrainingQuantConfig
     import json
     with open('config.json', 'r') as f:
@@ -67,7 +62,6 @@
              eval_func=eval)
 
     q_model.save(args.output_model)
-    ...
     ```
 
 
