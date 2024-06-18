@@ -1,13 +1,28 @@
 
 
 
-## 1. Environment
+# Quantize Onnx Model
 
+## 1. Environment
+[Neural-Compressor](https://github.com/intel/neural-compressor) 
+
+An open-source Python library supporting popular model compression techniques on all mainstream deep learning frameworks (TensorFlow, PyTorch, ONNX Runtime, and MXNet)
+
+
+
+    git clone https://github.com/intel/neural-compressor.git
+
+    <!-- squeenet -->
+    cd neural-compressor/examples/onnxrt/image_recognition/onnx_model_zoo/squeezenet
+    <!-- googlenet -->
+    cd neural-compressor/examples/onnxrt/image_recognition/onnx_model_zoo/googlenet
 
     pip install neural-compressor
     pip install -r requirements.txt
 
+
 ## 2. Prepare Model
+以Squeezenet為例:
 
     python prepare_model.py --output_model='squeezenet1.0-12.onnx'
 
@@ -48,8 +63,7 @@
     }
     ```
 
-
-    main.py
+    修改 main.py 讀取我們設定的quantization 設置 Config.json
     ```python=
     from neural_compressor import quantization, PostTrainingQuantConfig
     import json
