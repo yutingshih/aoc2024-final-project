@@ -13,13 +13,12 @@ An open-source Python library supporting popular model compression techniques on
     git clone https://github.com/intel/neural-compressor.git
 
     <!-- squeenet -->
-    cd neural-compressor/examples/onnxrt/image_recognition/onnx_model_zoo/squeezenet
+    cd neural-compressor/examples/onnxrt/image_recognition/onnx_model_zoo/squeezenet/quantization/ptq_static
     <!-- googlenet -->
-    cd neural-compressor/examples/onnxrt/image_recognition/onnx_model_zoo/googlenet
+    cd neural-compressor/examples/onnxrt/image_recognition/onnx_model_zoo/googlenet/quantization/ptq_static
 
     pip install neural-compressor
     pip install -r requirements.txt
-
 
 ## 2. Prepare Model
 Using SqueezeNet as an example:
