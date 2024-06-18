@@ -50,17 +50,54 @@ Using SqueezeNet as an example:
     {
         "Conv": {
             "weight": {
-                "dtype": ["int8"],
-                "scheme": ["sym"],
-                "granularity": ["per_channel"]
+                "dtype": [
+                    "int8"
+                ],
+                "scheme": [
+                    "sym"
+                ],
+                "granularity": [
+                    "per_channel"
+                ]
             },
             "activation": {
-                "dtype": ["int8"],
-                "scheme": ["sym"],
-                "granularity": ["per_tensor"]
+                "dtype": [
+                    "int8"
+                ],
+                "scheme": [
+                    "sym"
+                ],
+                "granularity": [
+                    "per_tensor"
+                ]
+            }
+        },
+        "Linear": {
+            "weight": {
+                "dtype": [
+                    "int8"
+                ],
+                "scheme": [
+                    "sym"
+                ],
+                "granularity": [
+                    "per_channel"
+                ]
+            },
+            "activation": {
+                "dtype": [
+                    "int8"
+                ],
+                "scheme": [
+                    "sym"
+                ],
+                "granularity": [
+                    "per_tensor"
+                ]
             }
         }
     }
+
     ```
 
     Modify main.py to read the quantization settings from Config.json:
