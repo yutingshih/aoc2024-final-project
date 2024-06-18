@@ -1,0 +1,50 @@
+{
+    "Conv": {
+        "weight": {
+            "dtype": [
+                "int8"
+            ],
+            "scheme": [
+                "sym"
+            ],
+            "granularity": [
+                "per_channel"
+            ]
+        },
+        "activation": {
+            "dtype": [
+                "int8"
+            ],
+            "scheme": [
+                "sym"
+            ],
+            "granularity": [
+                "per_tensor"
+            ]
+        }
+    },
+    "Linear": {
+        "weight": {
+            "dtype": [
+                "int8"
+            ],
+            "scheme": [
+                "sym"
+            ],
+            "granularity": [
+                "per_channel"
+            ]
+        },
+        "activation": {
+            "dtype": [
+                "int8"
+            ],
+            "scheme": [
+                "sym"
+            ],
+            "granularity": [
+                "per_tensor"
+            ]
+        }
+    }
+}
