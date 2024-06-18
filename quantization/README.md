@@ -22,7 +22,7 @@ An open-source Python library supporting popular model compression techniques on
 
 
 ## 2. Prepare Model
-以Squeezenet為例:
+Using SqueezeNet as an example:
 
     python prepare_model.py --output_model='squeezenet1.0-12.onnx'
 
@@ -63,7 +63,8 @@ An open-source Python library supporting popular model compression techniques on
     }
     ```
 
-    修改 main.py 讀取我們設定的quantization 設置 Config.json
+    Modify main.py to read the quantization settings from Config.json:
+
     ```python=
     from neural_compressor import quantization, PostTrainingQuantConfig
     import json
